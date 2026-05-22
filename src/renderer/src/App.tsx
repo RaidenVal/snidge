@@ -1,34 +1,31 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import { useState, useEffect } from 'react'
+import HotkeyInput from './components/HotkeyInput'
 
 function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  // Initialisation, app is trying to get hotkey in store from main
+  const [hotkey, setHotkey] = useState('')
+  const [hasError, setHasError] = useState(false)
+
+  useEffect(() => {
+    // "current" here is the hotkey got from main
+    window.api.getHotkey().then((current) => setHotkey(current))
+    // Empty [] means this runs only once
+  }, [])
+
+  async function handleHotkeyChange(newHotkey: string): Promise<void> {
+    setHotkey(newHotkey)
+    const result = await window.api.setHotkey(newHotkey)
+    setHasError(!result.success)
+  }
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by Snidge</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
+    <div className="title">
+      <h2>Shortcuts</h2>
+      <div className="action">
+        <label>Snidge</label>
+        <HotkeyInput value={hotkey} onChange={handleHotkeyChange} hasError={hasError} />
       </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
+    </div>
   )
 }
 
