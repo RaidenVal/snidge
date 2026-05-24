@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import resetButton from '../assets/reset_button.png'
 
 interface Props {
   value: string
@@ -46,7 +47,10 @@ function HotkeyInput({ value, onChange }: Props): React.JSX.Element {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isListening, onChange])
 
-  const buttonDisplay = value.toLowerCase().replace('commandorcontrol', 'ctrl')
+  const buttonDisplay = value
+    .toLowerCase()
+    .replace('commandorcontrol', 'ctrl')
+    .replace(/\+/g, ' + ')
 
   return (
     <div className="hotkey-row">
@@ -64,7 +68,7 @@ function HotkeyInput({ value, onChange }: Props): React.JSX.Element {
         className="reset-button"
         onClick={() => onChange('CommandOrControl+Alt+S')}
       >
-        ⟲
+        <img src={resetButton} alt="Reset" />
       </button>
       {isListening && <small className="hint">Press Esc to cancel</small>}
     </div>
