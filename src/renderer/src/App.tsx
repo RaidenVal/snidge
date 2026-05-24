@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import HotkeyInput from './components/HotkeyInput'
+import TitleBar from './components/TitleBar'
 
 function App(): React.JSX.Element {
   // Initialisation, app is trying to get hotkey in store from main
@@ -20,6 +21,7 @@ function App(): React.JSX.Element {
 
   return (
     <div className="title">
+      <TitleBar />
       <h2>Shortcuts</h2>
       <div className="action">
         <label>Snidge</label>
