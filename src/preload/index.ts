@@ -5,7 +5,8 @@ import { electronAPI } from '@electron-toolkit/preload'
 const api = {
   getHotkey: (): Promise<string> => ipcRenderer.invoke('get-hotkey'),
   setHotkey: (newHotkey: string): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('set-hotkey', newHotkey)
+    ipcRenderer.invoke('set-hotkey', newHotkey),
+  closeSettingsWindow: (): void => ipcRenderer.send('close-settings-window')
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

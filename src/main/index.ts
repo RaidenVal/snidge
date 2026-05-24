@@ -17,6 +17,7 @@ function createSettingsWindow(): void {
 
   // Create settings window ui
   settingsWindow = new BrowserWindow({
+    frame: false,
     width: 600,
     height: 350,
     title: 'Preference',
@@ -70,6 +71,15 @@ app.whenReady().then(() => {
   ])
   tray.setContextMenu(contextMenu)
 
+  // Hotkey registration
+  const hotkey = store.get('hotkey')
+  const ret = globalShortcut.register(hotkey, () => {
+    console.log('Snidge triggered')
+  })
+  if(!ret) {
+    console.warn(`Hotkey $(hotkey) unavailable at startup`)
+  }
+
   // Set up global shortcut
   // Set current hotkey
   ipcMain.handle('get-hotkey', () => store.get('hotkey'))
@@ -91,6 +101,10 @@ app.whenReady().then(() => {
       })
     }
     return { success }
+  })
+
+  ipcMain.on('close-settings-window', () => {
+    settingsWindow?.close()
   })
 })
 
