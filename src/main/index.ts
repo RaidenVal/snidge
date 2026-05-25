@@ -8,6 +8,7 @@ import {
   desktopCapturer,
   screen
 } from 'electron'
+import type { Display } from 'electron'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
@@ -15,6 +16,7 @@ import { join } from 'path'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
+let overlayWindow: BrowserWindow | null = null
 
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
@@ -57,6 +59,41 @@ function createSettingsWindow(): void {
   optimizer.watchWindowShortcuts(settingsWindow)
 }
 
+function createOverlayWindow(display: Display): void {
+  // Check if overlayWindow already exits
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.focus()
+    return
+  }
+
+  overlayWindow = new BrowserWindow({
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    x: display.bounds.x,
+    y: display.bounds.y,
+    width: display.bounds.width,
+    height: display.bounds.height
+  })
+  // Make sure the overlayWindow is always on the very top level
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+  // Load something first so Esc can work
+  overlayWindow.loadURL('about:blank')
+
+  // Clear the reference when the window is destroyed,
+  // so the next createOverlayWindow() call creates a fresh one
+  overlayWindow.on('closed', () => {
+    overlayWindow = null
+  })
+
+  overlayWindow.webContents.on('before-input-event', (_event, input) => {
+    if (input.type === 'keyDown' && input.key === 'Escape') {
+      overlayWindow?.close()
+    }
+  })
+}
+
 async function triggerCapture(): Promise<void> {
   // Get the current location of the cursor
   const point = screen.getCursorScreenPoint()
@@ -74,6 +111,8 @@ async function triggerCapture(): Promise<void> {
   const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
 
   console.log('Captured: ', source.thumbnail.getSize())
+
+  createOverlayWindow(display)
 }
 
 app.whenReady().then(() => {
