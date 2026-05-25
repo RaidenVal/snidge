@@ -1,4 +1,13 @@
-import { app, BrowserWindow, ipcMain, Menu, Tray, globalShortcut } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  Tray,
+  globalShortcut,
+  desktopCapturer,
+  screen
+} from 'electron'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
@@ -48,8 +57,23 @@ function createSettingsWindow(): void {
   optimizer.watchWindowShortcuts(settingsWindow)
 }
 
-function triggerCapture(): void {
-  console.log('Snidge triggered')
+async function triggerCapture(): Promise<void> {
+  // Get the current location of the cursor
+  const point = screen.getCursorScreenPoint()
+  // Get the current display info
+  // Uusers may have multiple displays)
+  const display = screen.getDisplayNearestPoint(point)
+
+  // Screenshot
+  const sources = await desktopCapturer.getSources({
+    types: ['screen'],
+    thumbnailSize: { width: display.size.width, height: display.size.height }
+  })
+
+  // Match and return the correct display with display_id
+  const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
+
+  console.log('Captured: ', source.thumbnail.getSize())
 }
 
 app.whenReady().then(() => {
