@@ -70,7 +70,6 @@ function HotkeyInput({ value, onChange }: Props): React.JSX.Element {
       >
         <img src={resetButton} alt="Reset" />
       </button>
-      {isListening && <small className="hint">Press Esc to cancel</small>}
     </div>
   )
 }
