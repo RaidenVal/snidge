@@ -48,6 +48,10 @@ function createSettingsWindow(): void {
   optimizer.watchWindowShortcuts(settingsWindow)
 }
 
+function triggerCapture(): void {
+  console.log('Snidge triggered')
+}
+
 app.whenReady().then(() => {
   console.log('Saved hotkey: ', store.get('hotkey'))
   // Set app user model id for windows
@@ -73,11 +77,10 @@ app.whenReady().then(() => {
 
   // Hotkey registration
   const hotkey = store.get('hotkey')
-  const ret = globalShortcut.register(hotkey, () => {
-    console.log('Snidge triggered')
-  })
-  if(!ret) {
-    console.warn(`Hotkey $(hotkey) unavailable at startup`)
+  const ret = globalShortcut.register(hotkey, triggerCapture)
+
+  if (!ret) {
+    console.warn(`Hotkey ${hotkey} unavailable at startup`)
   }
 
   // Set up global shortcut
@@ -89,16 +92,12 @@ app.whenReady().then(() => {
     const oldHotkey = store.get('hotkey')
     globalShortcut.unregisterAll()
 
-    const success = globalShortcut.register(newHotkey, () => {
-      console.log('Snidge triggered')
-    })
+    const success = globalShortcut.register(newHotkey, triggerCapture)
 
     if (success) {
       store.set('hotkey', newHotkey)
     } else {
-      globalShortcut.register(oldHotkey, () => {
-        console.log('Snidge triggered')
-      })
+      globalShortcut.register(oldHotkey, triggerCapture)
     }
     return { success }
   })
