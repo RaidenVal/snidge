@@ -115,7 +115,10 @@ async function triggerCapture(): Promise<void> {
   // Screenshot
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
-    thumbnailSize: { width: display.size.width, height: display.size.height }
+    thumbnailSize: {
+      width: display.size.width * display.scaleFactor,
+      height: display.size.height * display.scaleFactor
+    }
   })
 
   // Match and return the correct display with display_id
