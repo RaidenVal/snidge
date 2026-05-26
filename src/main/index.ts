@@ -8,7 +8,7 @@ import {
   desktopCapturer,
   screen
 } from 'electron'
-import type { Display } from 'electron'
+import type { Display, NativeImage } from 'electron'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
@@ -17,6 +17,7 @@ import { join } from 'path'
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
+let lastScreenshot: NativeImage | null = null
 
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
@@ -122,6 +123,9 @@ async function triggerCapture(): Promise<void> {
 
   console.log('Captured: ', source.thumbnail.getSize())
 
+  // Thumbnail means a small preview pic the user can identify
+  // Here it means the pic itself
+  lastScreenshot = source.thumbnail
   createOverlayWindow(display)
 }
 
@@ -173,6 +177,10 @@ app.whenReady().then(() => {
       globalShortcut.register(oldHotkey, triggerCapture)
     }
     return { success }
+  })
+
+  ipcMain.handle('get-screenshot', () => {
+    return lastScreenshot?.toDataURL() ?? null
   })
 
   ipcMain.on('close-settings-window', () => {
