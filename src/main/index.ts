@@ -74,12 +74,22 @@ function createOverlayWindow(display: Display): void {
     x: display.bounds.x,
     y: display.bounds.y,
     width: display.bounds.width,
-    height: display.bounds.height
+    height: display.bounds.height,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
   })
   // Make sure the overlayWindow is always on the very top level
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
-  // Load something first so Esc can work
-  overlayWindow.loadURL('about:blank')
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    // When it is the local/dev environment, load the url (localhost: xxxx)
+    overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay/index.html`)
+  } else {
+    // When it is the production/live environment, load html file
+    overlayWindow.loadFile(join(__dirname, '../renderer/overlay.html'))
+  }
 
   // Clear the reference when the window is destroyed,
   // so the next createOverlayWindow() call creates a fresh one
