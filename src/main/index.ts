@@ -18,6 +18,7 @@ let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
+let paletteWindow: BrowserWindow | null = null
 
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
@@ -102,6 +103,44 @@ function createOverlayWindow(display: Display): void {
     if (input.type === 'keyDown' && input.key === 'Escape') {
       overlayWindow?.close()
     }
+  })
+}
+
+function createPaletteWindow(): void {
+  // If paletteWindow already exists, focus on it instead of
+  // Opening a new one
+  if (paletteWindow && !paletteWindow.isDestroyed()) {
+    paletteWindow.focus()
+    return
+  }
+
+  // Create paletteWindow ui
+  paletteWindow = new BrowserWindow({
+    frame: false,
+    width: 600,
+    height: 500,
+    title: 'Palette',
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    // When it is the local/dev environment, load the url (localhost: xxxx)
+    paletteWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/palette/index.html`)
+  } else {
+    // When it is the production/live environment, load html file
+    paletteWindow.loadFile(join(__dirname, '../renderer/palette.html'))
+  }
+
+  // Clear the reference when the window is destroyed,
+  // so the next createPaletteWindow() call creates a fresh one
+  paletteWindow.on('closed', () => {
+    paletteWindow = null
   })
 }
 
@@ -193,6 +232,7 @@ app.whenReady().then(() => {
   ipcMain.on('color-picked', (_event, hex: string) => {
     console.log('Color pick: ', hex)
     overlayWindow?.close()
+    createPaletteWindow()
   })
 })
 
