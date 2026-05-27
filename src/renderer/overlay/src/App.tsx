@@ -78,11 +78,18 @@ function App(): React.JSX.Element {
     setMousePosition({ x: e.clientX, y: e.clientY })
   }
 
+  function handleClick(): void {
+    const hex = pickedColorRef.current
+    if (!hex) return
+    window.api.pickColor(hex)
+  }
+
   return (
     <>
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
+        onClick={handleClick}
         style={{ width: '100vw', height: '100vh', display: 'block' }}
       />
       <canvas

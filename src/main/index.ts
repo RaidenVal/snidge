@@ -189,6 +189,11 @@ app.whenReady().then(() => {
   ipcMain.on('close-settings-window', () => {
     settingsWindow?.close()
   })
+
+  ipcMain.on('color-picked', (_event, hex: string) => {
+    console.log('Color pick: ', hex)
+    overlayWindow?.close()
+  })
 })
 
 app.on('window-all-closed', () => {

@@ -7,6 +7,7 @@ declare global {
       getHotkey: () => Promise<string>
       setHotkey: (newHotkey: string) => Promise<{ success: boolean }>
       closeSettingsWindow: () => void
+      pickColor: (hex: string) => void
       getScreenshot: () => Promise<string | null>
     }
   }
