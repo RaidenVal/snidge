@@ -17,8 +17,10 @@ import { join } from 'path'
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
-let lastScreenshot: NativeImage | null = null
 let paletteWindow: BrowserWindow | null = null
+let lastScreenshot: NativeImage | null = null
+let lastPickedColor: string | null = null
+
 
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
@@ -225,12 +227,15 @@ app.whenReady().then(() => {
     return lastScreenshot?.toDataURL() ?? null
   })
 
+  ipcMain.handle('get-picked-color', () => lastPickedColor)
+
   ipcMain.on('close-settings-window', () => {
     settingsWindow?.close()
   })
 
   ipcMain.on('color-picked', (_event, hex: string) => {
     console.log('Color pick: ', hex)
+    lastPickedColor = hex
     overlayWindow?.close()
     createPaletteWindow()
   })

@@ -1,5 +1,17 @@
+import { useEffect, useState } from "react"
+
 function App(): React.JSX.Element {
-  return <div style={{ backgroundColor: 'lightyellow', padding: 20 }}>Hello Palette</div>
+  const [hex, setHex] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.api.getPickedColor().then(setHex)
+  }, [])
+
+  return (
+    <div style={{ backgroundColor: 'lightyellow', padding: 20 }}>
+      Picked: {hex ?? 'loading... '}
+    </div>
+  )
 }
 
 export default App
