@@ -119,8 +119,8 @@ function createPaletteWindow(): void {
   // Create paletteWindow ui
   paletteWindow = new BrowserWindow({
     frame: false,
-    width: 600,
-    height: 500,
+    width: 720,
+    height: 460,
     title: 'Palette',
     resizable: false,
     minimizable: false,
