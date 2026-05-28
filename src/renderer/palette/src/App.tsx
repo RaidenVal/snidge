@@ -3,7 +3,7 @@ import { generatePalette } from './colorMath'
 
 function App(): React.JSX.Element {
   const [hex, setHex] = useState<string | null>(null)
-  const [count] = useState<number>(10)
+  const [count, setCount] = useState<number>(10)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -19,6 +19,8 @@ function App(): React.JSX.Element {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const cx = 200
     const cy = 200
@@ -68,7 +70,16 @@ function App(): React.JSX.Element {
     ctx.fill()
   }, [hex, count])
 
-  return <canvas ref={canvasRef} width={400} height={400} />
+  return (
+    <>
+      <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
+        <option value={6}>6</option>
+        <option value={10}>10</option>
+        <option value={20}>20</option>
+      </select>
+      <canvas ref={canvasRef} width={400} height={400} />
+    </>
+  )
 }
 
 export default App
