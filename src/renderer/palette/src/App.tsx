@@ -4,12 +4,14 @@ import { generatePalette } from './colorMath'
 function App(): React.JSX.Element {
   const [hex, setHex] = useState<string | null>(null)
   const [count, setCount] = useState<number>(10)
+  const [activeColor, setActiveColor] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     window.api.getPickedColor().then((dataHex: string | null) => {
       if (!dataHex) return
       setHex(dataHex)
+      setActiveColor(dataHex)
     })
   }, [])
 
@@ -70,6 +72,51 @@ function App(): React.JSX.Element {
     ctx.fill()
   }, [hex, count])
 
+  function handleClick(e: React.MouseEvent<HTMLCanvasElement>): void {
+    if (!hex) return
+
+    // Get the relative coordinates of the click (to the top left of the canvas)
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    // Get the polar coordinates
+    const cx = 200,
+      cy = 200
+    const innerR = 90,
+      outerR = 180,
+      centerRadius = 40
+    const dx = x - cx
+    const dy = y - cy
+    const dist = Math.sqrt(dx * dx + dy * dy)
+
+    // Judge the position (center? wedge? gap?)
+    if (dist <= centerRadius) {
+      // Go back to the picked color if clicking on the center
+      setActiveColor(hex)
+      return
+    }
+    if (dist < innerR || dist > outerR) return
+
+    let angle = Math.atan2(dy, dx) + Math.PI / 2
+    if (angle < 0) angle += 2 * Math.PI
+
+    const palette = generatePalette(hex, count)
+    const half = count / 2
+    const wedgeAngle = (2 * Math.PI) / count
+
+    let newColor: string
+    if (angle <= Math.PI) {
+      const i = Math.floor(angle / wedgeAngle)
+      newColor = palette.darker[half - 1 - i]
+    } else {
+      const reverse = 2 * Math.PI - angle
+      const i = Math.floor(reverse / wedgeAngle)
+      newColor = palette.lighter[half - 1 - i]
+    }
+    setActiveColor(newColor)
+  }
+
   return (
     <>
       <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
@@ -77,7 +124,7 @@ function App(): React.JSX.Element {
         <option value={10}>10</option>
         <option value={20}>20</option>
       </select>
-      <canvas ref={canvasRef} width={400} height={400} />
+      <canvas ref={canvasRef} width={400} height={400} onClick={handleClick} />
     </>
   )
 }

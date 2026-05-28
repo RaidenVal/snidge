@@ -21,7 +21,6 @@ let paletteWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
 let lastPickedColor: string | null = null
 
-
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
   // Opening a new one
