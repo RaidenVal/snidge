@@ -31,6 +31,7 @@ function createSettingsWindow(): void {
 
   // Create settings window ui
   settingsWindow = new BrowserWindow({
+    show: false,
     frame: false,
     width: 600,
     height: 350,
@@ -42,6 +43,10 @@ function createSettingsWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
+  })
+
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow?.show()
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {

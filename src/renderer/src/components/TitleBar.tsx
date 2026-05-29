@@ -1,12 +1,13 @@
-function TitleBar(): React.JSX.Element {
-  function closeWindow(): void {
-    window.api.closeSettingsWindow()
-  }
+interface Props {
+  title: string
+  onClose: () => void
+}
 
+function TitleBar({ title, onClose }: Props): React.JSX.Element {
   return (
     <div className="title-bar">
-      <span className="title-bar-text">Preference</span>
-      <button className="title-bar-close" onClick={() => closeWindow()}>
+      <span className="title-bar-text">{title}</span>
+      <button className="title-bar-close" onClick={onClose}>
         ✕
       </button>
     </div>

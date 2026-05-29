@@ -21,7 +21,7 @@ function App(): React.JSX.Element {
 
   return (
     <div className="title">
-      <TitleBar />
+      <TitleBar title="Preference" onClose={() => window.api.closeSettingsWindow()} />
       <h2>Shortcuts</h2>
       <div className="action">
         <label>Snidge</label>
