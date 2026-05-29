@@ -162,6 +162,10 @@ function App(): React.JSX.Element {
           {copiedFormat === 'cmyk' ? '✓' : 'Copy'}
         </button>
       </div>
+
+      <button onClick={() => console.log('Save stub - Phase 6')}>Save colour palette</button>
+      <button onClick={() => window.api.repick()}>Repick</button>
+      <button onClick={() => window.api.closePaletteWindow()}>Cancel</button>
     </>
   )
 }

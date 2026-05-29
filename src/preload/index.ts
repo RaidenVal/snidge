@@ -7,7 +7,9 @@ const api = {
   setHotkey: (newHotkey: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('set-hotkey', newHotkey),
   closeSettingsWindow: (): void => ipcRenderer.send('close-settings-window'),
+  closePaletteWindow: (): void => ipcRenderer.send('close-palette-window'),
   pickColor: (hex: string): void => ipcRenderer.send('color-picked', hex),
+  repick: (): void => ipcRenderer.send('repick'),
   getPickedColor: (): Promise<string | null> => ipcRenderer.invoke('get-picked-color'),
   getScreenshot: (): Promise<string | null> => ipcRenderer.invoke('get-screenshot')
 }

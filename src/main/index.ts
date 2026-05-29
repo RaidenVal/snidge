@@ -238,6 +238,22 @@ app.whenReady().then(() => {
     overlayWindow?.close()
     createPaletteWindow()
   })
+
+  ipcMain.on('close-palette-window', () => {
+    paletteWindow?.close()
+  })
+
+  ipcMain.on('repick', () => {
+    if (paletteWindow) {
+      // Listen first to make sure palette window is fully closed
+      paletteWindow.once('closed', () => {
+        setTimeout(() => triggerCapture(), 100)
+      })
+      paletteWindow.close()
+    } else {
+      triggerCapture()
+    }
+  })
 })
 
 app.on('window-all-closed', () => {
