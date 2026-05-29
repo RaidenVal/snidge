@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react'
-import { generatePalette } from './colorMath'
+import { generatePalette, hexToRgb, rgbToCmyk } from './colorMath'
 
 function App(): React.JSX.Element {
   const [hex, setHex] = useState<string | null>(null)
   const [count, setCount] = useState<number>(10)
   const [activeColor, setActiveColor] = useState<string | null>(null)
+  const [copiedFormat, setCopiedFormat] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -117,6 +118,15 @@ function App(): React.JSX.Element {
     setActiveColor(newColor)
   }
 
+  function copyToClipboard(format: string, text: string): void {
+    navigator.clipboard.writeText(text)
+    setCopiedFormat(format)
+    setTimeout(() => setCopiedFormat(null), 2000)
+  }
+
+  const rgb = activeColor ? hexToRgb(activeColor) : null
+  const cmyk = rgb ? rgbToCmyk(rgb.r, rgb.g, rgb.b) : null
+
   return (
     <>
       <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
@@ -124,7 +134,34 @@ function App(): React.JSX.Element {
         <option value={10}>10</option>
         <option value={20}>20</option>
       </select>
+
       <canvas ref={canvasRef} width={400} height={400} onClick={handleClick} />
+
+      <span>HEX</span>
+      <span>{activeColor ?? '--'}</span>
+      <button onClick={() => copyToClipboard('hex', activeColor ?? '')}>
+        {copiedFormat === 'hex' ? '✓' : 'Copy'}
+      </button>
+
+      <div>
+        <span>RGB</span>
+        <span>{rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '--'}</span>
+        <button onClick={() => copyToClipboard('rgb', rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '')}>
+          {copiedFormat === 'rgb' ? '✓' : 'Copy'}
+        </button>
+      </div>
+
+      <div>
+        <span>CMYK</span>
+        <span>{cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '--'}</span>
+        <button
+          onClick={() =>
+            copyToClipboard('cmyk', cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '')
+          }
+        >
+          {copiedFormat === 'cmyk' ? '✓' : 'Copy'}
+        </button>
+      </div>
     </>
   )
 }
