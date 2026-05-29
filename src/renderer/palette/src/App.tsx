@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { generatePalette, hexToRgb, rgbToCmyk } from './colorMath'
+import TitleBar from '@renderer/components/TitleBar'
 
 function App(): React.JSX.Element {
   const [hex, setHex] = useState<string | null>(null)
@@ -25,13 +26,13 @@ function App(): React.JSX.Element {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    const cx = 200
-    const cy = 200
-    const innerR = 90
-    const outerR = 180
+    const cx = 160
+    const cy = 160
+    const innerR = 72
+    const outerR = 144
     const midR = (innerR + outerR) / 2
     const ringWidth = outerR - innerR
-    const centerRadius = 40
+    const centerRadius = 32
 
     const palette = generatePalette(hex, count)
 
@@ -82,11 +83,11 @@ function App(): React.JSX.Element {
     const y = e.clientY - rect.top
 
     // Get the polar coordinates
-    const cx = 200,
-      cy = 200
-    const innerR = 90,
-      outerR = 180,
-      centerRadius = 40
+    const cx = 160,
+      cy = 160
+    const innerR = 72,
+      outerR = 144,
+      centerRadius = 32
     const dx = x - cx
     const dy = y - cy
     const dist = Math.sqrt(dx * dx + dy * dy)
@@ -129,43 +130,75 @@ function App(): React.JSX.Element {
 
   return (
     <>
-      <select value={count} onChange={(e) => setCount(Number(e.target.value))}>
-        <option value={6}>6</option>
-        <option value={10}>10</option>
-        <option value={20}>20</option>
-      </select>
+      <TitleBar title="Colour Palette" onClose={() => window.api.closePaletteWindow()} />
 
-      <canvas ref={canvasRef} width={400} height={400} onClick={handleClick} />
+      <div className="palette-body">
+        <canvas ref={canvasRef} width={320} height={320} onClick={handleClick} />
 
-      <span>HEX</span>
-      <span>{activeColor ?? '--'}</span>
-      <button onClick={() => copyToClipboard('hex', activeColor ?? '')}>
-        {copiedFormat === 'hex' ? '✓' : 'Copy'}
-      </button>
+        <div className="palette-right">
+          {/*Dropdown menu*/}
 
-      <div>
-        <span>RGB</span>
-        <span>{rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '--'}</span>
-        <button onClick={() => copyToClipboard('rgb', rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '')}>
-          {copiedFormat === 'rgb' ? '✓' : 'Copy'}
-        </button>
+          <div className="pill coral">
+            <span className="label-white">Colour tone amount</span>
+            <select
+              className="amount-select"
+              value={count}
+              onChange={(e) => setCount(Number(e.target.value))}
+            >
+              <option value={6}>6</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+            </select>
+          </div>
+
+          {/*Three color schemes*/}
+
+          <div className="pill">
+            <span className="label">HEX</span>
+            <span className="value">{activeColor ?? '--'}</span>
+            <button className="copy-btn" onClick={() => copyToClipboard('hex', activeColor ?? '')}>
+              {copiedFormat === 'hex' ? '✓' : '⧉'}
+            </button>
+          </div>
+
+          <div className="pill">
+            <span className="label">RGB</span>
+            <span className="value">{rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '--'}</span>
+            <button
+              className="copy-btn"
+              onClick={() => copyToClipboard('rgb', rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '')}
+            >
+              {copiedFormat === 'rgb' ? '✓' : '⧉'}
+            </button>
+          </div>
+
+          <div className="pill">
+            <span className="label">CMYK</span>
+            <span className="value">{cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '--'}</span>
+            <button
+              className="copy-btn"
+              onClick={() =>
+                copyToClipboard('cmyk', cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '')
+              }
+            >
+              {copiedFormat === 'cmyk' ? '✓' : '⧉'}
+            </button>
+          </div>
+
+          {/*Save Button*/}
+
+          <button className="coral-btn" onClick={() => console.log('Save stub - Phase 6')}>
+            Save colour palette
+          </button>
+
+          {/*Repick and Cancel Button*/}
+
+          <div className="btn-row">
+            <button className="coral-btn" onClick={() => window.api.repick()}>Repick</button>
+            <button className="coral-btn" onClick={() => window.api.closePaletteWindow()}>Cancel</button>
+          </div>
+        </div>
       </div>
-
-      <div>
-        <span>CMYK</span>
-        <span>{cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '--'}</span>
-        <button
-          onClick={() =>
-            copyToClipboard('cmyk', cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '')
-          }
-        >
-          {copiedFormat === 'cmyk' ? '✓' : 'Copy'}
-        </button>
-      </div>
-
-      <button onClick={() => console.log('Save stub - Phase 6')}>Save colour palette</button>
-      <button onClick={() => window.api.repick()}>Repick</button>
-      <button onClick={() => window.api.closePaletteWindow()}>Cancel</button>
     </>
   )
 }

@@ -1,0 +1,150 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --coral: #F3776E;
+  --blush: #FEEFF1;
+  --white: #ffffff;
+  --text-dark: #333333;
+}
+
+html, body, #root {
+  margin: 0;
+  height: 100%;
+  background: var(--blush);
+  font-family: 'Outfit', sans-serif;
+}
+
+.title-bar {
+  background: var(--coral);
+  color: white;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  -webkit-app-region: drag;
+}
+
+.title-bar-text {
+  font-size: 28px;
+  font-weight: normal;
+}
+
+.title-bar-close {
+  -webkit-app-region: no-drag;
+  background: transparent;
+  border: none;
+  width: 45px;
+  height: 45px;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+}
+
+.title-bar-close:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.palette-body {
+  display: flex;
+  gap: 32px;
+  padding: 32px;
+  height: calc(100% - 56px);
+  box-sizing: border-box;
+}
+
+.palette-left {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+
+.palette-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+}
+
+.pill {
+  background: var(--white);
+  border-radius: 9999px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pill.coral {
+  background: var(--coral);
+  justify-content: space-between;
+}
+
+.label {
+  color: var(--coral);
+  font-weight: bold;
+  font-size: 16px;
+  min-width: 60px;
+}
+
+.label-white {
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.value {
+  color: var(--text-dark);
+  flex: 1;
+  text-align: right;
+}
+
+.amount-select {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding: 0;
+  outline: none;
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--coral);
+  font-size: 20px;
+  padding: 0;
+}
+
+.copy-btn:hover { opacity: 0.7; }
+
+.coral-btn {
+  background: var(--coral);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  padding: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.coral-btn:hover { opacity: 0.9; }
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-row .coral-btn {
+  flex: 1;
+}
