@@ -11,7 +11,11 @@ const api = {
   pickColor: (hex: string): void => ipcRenderer.send('color-picked', hex),
   repick: (): void => ipcRenderer.send('repick'),
   getPickedColor: (): Promise<string | null> => ipcRenderer.invoke('get-picked-color'),
-  getScreenshot: (): Promise<string | null> => ipcRenderer.invoke('get-screenshot')
+  getScreenshot: (): Promise<string | null> => ipcRenderer.invoke('get-screenshot'),
+  savePalette: (
+    dataURL: string
+  ): Promise<{ success: boolean; canceled?: boolean; path?: string }> =>
+    ipcRenderer.invoke('save-palette', dataURL)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

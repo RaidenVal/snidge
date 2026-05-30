@@ -12,6 +12,9 @@ declare global {
       repick: () => void
       getPickedColor: () => Promise<string | null>
       getScreenshot: () => Promise<string | null>
+      savePalette: (
+        dataURL: string
+      ) => Promise<{ success: boolean; canceled?: boolean; path?: string }>
     }
   }
 }

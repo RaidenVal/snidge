@@ -187,7 +187,21 @@ function App(): React.JSX.Element {
 
           {/*Save Button*/}
 
-          <button className="coral-btn" onClick={() => console.log('Save stub - Phase 6')}>
+          <button
+            className="coral-btn"
+            onClick={async () => {
+              if (!canvasRef.current) return
+              const dataURL = canvasRef.current.toDataURL('image/png')
+              const result = await window.api.savePalette(dataURL)
+              if (result.success) {
+                console.log('Save to: ', result.path)
+              } else if (result.canceled) {
+                console.log('Save canceled')
+              } else {
+                console.error('Save failed')
+              }
+            }}
+          >
             Save colour palette
           </button>
 

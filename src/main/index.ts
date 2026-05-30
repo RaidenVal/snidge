@@ -6,13 +6,15 @@ import {
   Tray,
   globalShortcut,
   desktopCapturer,
-  screen
+  screen,
+  dialog
 } from 'electron'
 import type { Display, NativeImage } from 'electron'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
 import { join } from 'path'
+import { writeFile } from 'fs/promises'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
@@ -232,6 +234,29 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('get-picked-color', () => lastPickedColor)
+
+  ipcMain.handle('save-palette', async (_event, dataURL: string) => {
+    // 1. Pop the built-in save window from the operation system
+    const result = await dialog.showSaveDialog({
+      defaultPath: `palette-${Date.now()}.png`,
+      filters: [{ name: 'PNG Image', extensions: ['png'] }]
+    })
+
+    // 2. If users cancel the save process
+    if (result.canceled || !result.filePath) {
+      return { success: false, canceled: true }
+    }
+
+    // 3. base 64 -> buffer (which is 二进制)
+    const base64 = dataURL.replace(/^data:image\/png;base64,/, '')
+    const buffer = Buffer.from(base64, 'base64')
+
+    // 4. Generate the file
+    await writeFile(result.filePath, buffer)
+
+    return { success: true, path: result.filePath }
+    
+  })
 
   ipcMain.on('close-settings-window', () => {
     settingsWindow?.close()
