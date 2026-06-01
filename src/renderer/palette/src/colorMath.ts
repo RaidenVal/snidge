@@ -97,11 +97,12 @@ export function generatePalette(hex: string, count: number): Palette {
   const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b)
   const lighter: string[] = []
   const darker: string[] = []
+  const maxT = 0.9
 
   const half = count / 2
 
   for (let i = 0; i < half; i++) {
-    const t = (i + 1) / half
+    const t = ((i + 1) / half) * maxT
     const lighterL = hsl.l + (1 - hsl.l) * t
     const lighterRgb = hslToRgb(hsl.h, hsl.s, lighterL)
     lighter.push(rgbToHex(lighterRgb.r, lighterRgb.g, lighterRgb.b))
