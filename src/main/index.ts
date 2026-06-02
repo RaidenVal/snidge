@@ -107,7 +107,7 @@ function createOverlayWindow(display: Display): void {
     overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay/index.html`)
   } else {
     // When it is the production/live environment, load html file
-    overlayWindow.loadFile(join(__dirname, '../renderer/overlay.html'))
+    overlayWindow.loadFile(join(__dirname, '../renderer/overlay/index.html'))
   }
 
   // Clear the reference when the window is destroyed,
@@ -151,7 +151,7 @@ function createPaletteWindow(): void {
     paletteWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/palette/index.html`)
   } else {
     // When it is the production/live environment, load html file
-    paletteWindow.loadFile(join(__dirname, '../renderer/palette.html'))
+    paletteWindow.loadFile(join(__dirname, '../renderer/palette/index.html'))
   }
 
   // Clear the reference when the window is destroyed,
