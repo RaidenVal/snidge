@@ -77,9 +77,11 @@ function createOverlayWindow(display: Display): void {
   }
 
   overlayWindow = new BrowserWindow({
+    show: false,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
+    focusable: true,
     skipTaskbar: true,
     x: display.bounds.x,
     y: display.bounds.y,
@@ -90,8 +92,15 @@ function createOverlayWindow(display: Display): void {
       sandbox: false
     }
   })
-  // Make sure the overlayWindow is always on the very top level
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+
+  overlayWindow.once('ready-to-show', () => {
+    overlayWindow?.show()
+    if (process.platform === 'win32') {
+      overlayWindow?.setFullScreen(true)
+    }
+    overlayWindow?.focus()
+  })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)

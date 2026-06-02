@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: com.raidenval.snidge
 productName: snidge
 directories:
   buildResources: build

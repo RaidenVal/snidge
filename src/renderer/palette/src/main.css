@@ -121,6 +121,11 @@ html, body, #root {
   outline: none;
 }
 
+.amount-select option {
+  color: white;
+  background: var(--coral);
+}
+
 .copy-btn {
   background: transparent;
   border: none;
