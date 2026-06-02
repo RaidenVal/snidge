@@ -255,7 +255,6 @@ app.whenReady().then(() => {
     await writeFile(result.filePath, buffer)
 
     return { success: true, path: result.filePath }
-    
   })
 
   ipcMain.on('close-settings-window', () => {
