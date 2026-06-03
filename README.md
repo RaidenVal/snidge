@@ -54,5 +54,5 @@ $ npm run build:linux
 
 ## License
 
-Copyright 2026 Jolene Zou. Licensed under the [Apache License 2.0](LICENSE).
+Copyright 2026 RaidenVal. Licensed under the [Apache License 2.0](LICENSE).
 Third-party component licenses are listed in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
