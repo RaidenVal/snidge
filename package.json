@@ -4,6 +4,7 @@
   "description": "A desktop color picker for graphic designers",
   "main": "./out/main/index.js",
   "author": "RaidenVal",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/RaidenVal/snidge",
   "scripts": {
     "format": "prettier --write .",
