@@ -162,30 +162,39 @@ function createPaletteWindow(): void {
 }
 
 async function triggerCapture(): Promise<void> {
+  if (paletteWindow && !paletteWindow.isDestroyed()) return
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    await new Promise<void>((resolve) => {
+      settingsWindow?.once('closed', () => resolve())
+      settingsWindow?.close()
+    })
+    await new Promise((r) => setTimeout(r, 100))
+  }
   // Get the current location of the cursor
   const point = screen.getCursorScreenPoint()
   // Get the current display info
   // Uusers may have multiple displays)
   const display = screen.getDisplayNearestPoint(point)
 
-  // Screenshot
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: {
-      width: display.size.width * display.scaleFactor,
-      height: display.size.height * display.scaleFactor
-    }
-  })
-
-  // Match and return the correct display with display_id
-  const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
-
-  console.log('Captured: ', source.thumbnail.getSize())
-
-  // Thumbnail means a small preview pic the user can identify
-  // Here it means the pic itself
-  lastScreenshot = source.thumbnail
-  createOverlayWindow(display)
+  try {
+    // Screenshot
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: {
+        width: display.size.width * display.scaleFactor,
+        height: display.size.height * display.scaleFactor
+      }
+    })
+    // Match and return the correct display with display_id
+    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
+    console.log('Captured: ', source.thumbnail.getSize())
+    // Thumbnail means a small preview pic the user can identify
+    // Here it means the pic itself
+    lastScreenshot = source.thumbnail
+    createOverlayWindow(display)
+  } catch (err) {
+    console.error('Capture failed:', err)
+  }
 }
 
 app.whenReady().then(() => {
