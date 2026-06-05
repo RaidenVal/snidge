@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { generatePalette, hexToRgb, rgbToCmyk } from './colorMath'
 import TitleBar from '@renderer/components/TitleBar'
+import copyIcon from './assets/copy.png'
+import copyDoneIcon from './assets/copydone.png'
 
 function App(): React.JSX.Element {
   const [hex, setHex] = useState<string | null>(null)
@@ -175,7 +177,7 @@ function App(): React.JSX.Element {
             <span className="label">HEX</span>
             <span className="value">{activeColor ?? '--'}</span>
             <button className="copy-btn" onClick={() => copyToClipboard('hex', activeColor ?? '')}>
-              {copiedFormat === 'hex' ? '✓' : '⧉'}
+              <img src={copiedFormat === 'hex' ? copyDoneIcon : copyIcon} alt="Copy" />
             </button>
           </div>
 
@@ -186,7 +188,7 @@ function App(): React.JSX.Element {
               className="copy-btn"
               onClick={() => copyToClipboard('rgb', rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '')}
             >
-              {copiedFormat === 'rgb' ? '✓' : '⧉'}
+              <img src={copiedFormat === 'rgb' ? copyDoneIcon : copyIcon} alt="Copy" />
             </button>
           </div>
 
@@ -201,7 +203,7 @@ function App(): React.JSX.Element {
                 copyToClipboard('cmyk', cmyk ? `${cmyk.c}, ${cmyk.m}, ${cmyk.y}, ${cmyk.k}` : '')
               }
             >
-              {copiedFormat === 'cmyk' ? '✓' : '⧉'}
+              <img src={copiedFormat === 'cmyk' ? copyDoneIcon : copyIcon} alt="Copy" />
             </button>
           </div>
 
