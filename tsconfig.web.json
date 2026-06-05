@@ -1,7 +1,7 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": [
-    "src/renderer/src/env.d.ts",
+    "src/renderer/settings/src/env.d.ts",
     "src/renderer/**/*",
     "src/preload/*.d.ts"
   ],
@@ -10,7 +10,7 @@
     "jsx": "react-jsx",
     "paths": {
       "@renderer/*": [
-        "./src/renderer/src/*"
+        "./src/renderer/settings/src/*"
       ]
     }
   }

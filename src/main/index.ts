@@ -53,10 +53,10 @@ function createSettingsWindow(): void {
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)
-    settingsWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`)
   } else {
     // When it is the production/live environment, load html file
-    settingsWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'))
   }
 
   // Clear the reference when the window is destroyed,

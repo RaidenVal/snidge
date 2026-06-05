@@ -8,7 +8,7 @@ export default defineConfig({
   renderer: {
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer/src'),
+        '@renderer': resolve('src/renderer/settings/src'),
         '@overlay': resolve('src/renderer/overlay/src'),
         '@palette': resolve('src/renderer/palette/src')
       }
@@ -16,7 +16,7 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: {
-          index: resolve('src/renderer/index.html'),
+          index: resolve('src/renderer/settings/index.html'),
           overlay: resolve('src/renderer/overlay/index.html'),
           palette: resolve('src/renderer/palette/index.html')
         }
