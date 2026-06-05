@@ -42,7 +42,10 @@ function App(): React.JSX.Element {
     return { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) }
   }
 
-  // 移到圆心 → 画线到外缘一点 → 画弧到外缘另一点 → 收尾
+  // a. Move to the center of the circle
+  // b. Draw a line to a point on the outer edge
+  // c. Draw an arc to another point on the outer edge
+  // d. Finish
   function sectorPath(start: number, end: number): string {
     const r = 22
     const dO = r / R
@@ -225,8 +228,12 @@ function App(): React.JSX.Element {
           {/*Repick and Cancel Button*/}
 
           <div className="btn-row">
-            <button className="coral-btn" onClick={() => window.api.repick()}>Repick</button>
-            <button className="coral-btn" onClick={() => window.api.closePaletteWindow()}>Cancel</button>
+            <button className="coral-btn" onClick={() => window.api.repick()}>
+              Repick
+            </button>
+            <button className="coral-btn" onClick={() => window.api.closePaletteWindow()}>
+              Cancel
+            </button>
           </div>
         </div>
       </div>
