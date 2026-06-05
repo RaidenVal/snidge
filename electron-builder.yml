@@ -13,6 +13,9 @@ asarUnpack:
   - resources/**
 win:
   executableName: snidge
+  target:
+    - appx
+    - nsis
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -41,3 +44,8 @@ npmRebuild: false
 publish:
   provider: generic
   url: https://example.com/auto-updates
+appx:
+  identityName: RaidenVal.Snidge
+  publisher: CN=E8C89A43-CACA-473C-9483-16BB8CB2EE62
+  publisherDisplayName: RaidenVal
+  applicationId: Snidge
