@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { generatePalette, hexToRgb, rgbToCmyk } from './colorMath'
-import TitleBar from '@renderer/components/TitleBar'
+import TitleBar from '@shared/components/TitleBar'
 import copyIcon from './assets/copy.png'
 import copyDoneIcon from './assets/copydone.png'
 

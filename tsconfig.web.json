@@ -9,8 +9,17 @@
     "composite": true,
     "jsx": "react-jsx",
     "paths": {
-      "@renderer/*": [
+      "@settings/*": [
         "./src/renderer/settings/src/*"
+      ],
+      "@overlay/*": [
+        "./src/renderer/overlay/src/*"
+      ],
+      "@palette/*": [
+        "./src/renderer/palette/src/*"
+      ],
+      "@shared/*": [
+        "./src/renderer/shared/*"
       ]
     }
   }

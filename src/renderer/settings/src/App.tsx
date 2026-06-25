@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import HotkeyInput from './components/HotkeyInput'
-import TitleBar from './components/TitleBar'
+import TitleBar from '@shared/components/TitleBar'
 
 function App(): React.JSX.Element {
   // Initialisation, app is trying to get hotkey in store from main

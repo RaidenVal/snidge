@@ -8,9 +8,10 @@ export default defineConfig({
   renderer: {
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer/settings/src'),
+        '@settings': resolve('src/renderer/settings/src'),
         '@overlay': resolve('src/renderer/overlay/src'),
-        '@palette': resolve('src/renderer/palette/src')
+        '@palette': resolve('src/renderer/palette/src'),
+        '@shared': resolve('src/renderer/shared')
       }
     },
     build: {
