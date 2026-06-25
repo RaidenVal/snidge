@@ -301,7 +301,7 @@ app.whenReady().then(() => {
     if (paletteWindow) {
       // Listen first to make sure palette window is fully closed
       paletteWindow.once('closed', () => {
-        setTimeout(() => triggerCapture(), 100)
+        setTimeout(() => triggerCapture(), 800)
       })
       paletteWindow.close()
     } else {
