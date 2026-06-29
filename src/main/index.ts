@@ -35,9 +35,9 @@ function createSettingsWindow(): void {
   settingsWindow = new BrowserWindow({
     show: false,
     frame: false,
-    width: 600,
-    height: 350,
-    title: 'Preference',
+    width: 860,
+    height: 500,
+    title: 'Snidge',
     resizable: false,
     minimizable: false,
     maximizable: false,
@@ -308,6 +308,7 @@ app.whenReady().then(() => {
       triggerCapture()
     }
   })
+  createSettingsWindow()
 })
 
 app.on('window-all-closed', () => {
