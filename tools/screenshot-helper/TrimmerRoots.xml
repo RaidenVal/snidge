@@ -1,0 +1,3 @@
+<linker>
+  <assembly fullname="System.Drawing.Common" preserve="all" />
+</linker>
