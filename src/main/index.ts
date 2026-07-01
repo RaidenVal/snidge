@@ -6,6 +6,7 @@ import {
   Tray,
   globalShortcut,
   desktopCapturer,
+  nativeImage,
   screen,
   dialog
 } from 'electron'
@@ -15,6 +16,7 @@ import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
+import { spawn } from 'child_process'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
@@ -100,6 +102,7 @@ function createOverlayWindow(display: Display): void {
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
 
   overlayWindow.once('ready-to-show', () => {
+    console.log(`[capture] overlay ready-to-show ${Date.now()}`)
     overlayWindow?.show()
     if (process.platform === 'win32') {
       overlayWindow?.setFullScreen(true)
@@ -144,33 +147,63 @@ function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-p
   sendColor()
 }
 
+function screenshotWithHelper(x: number, y: number, w: number, h: number): Promise<NativeImage> {
+  const helperPath = is.dev
+    ? join(app.getAppPath(), 'resources', 'win', 'screenshot-helper.exe')
+    : join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'win', 'screenshot-helper.exe')
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(helperPath, [String(x), String(y), String(w), String(h)])
+    const chunks: Buffer[] = []
+
+    proc.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
+    proc.stderr.on('data', (data: Buffer) => console.error('[screenshot-helper]', data.toString()))
+
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`screenshot-helper exited with code ${code}`))
+        return
+      }
+      resolve(nativeImage.createFromBuffer(Buffer.concat(chunks)))
+    })
+
+    proc.on('error', reject)
+  })
+}
+
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
+  const t0 = Date.now()
+  console.log('[capture] start')
   capturePurpose = purpose
   if (settingsWindow && !settingsWindow.isDestroyed()) {
+    console.log(`[capture] hiding window +${Date.now() - t0}ms`)
     settingsWindow.hide()
     await new Promise((r) => setTimeout(r, 100))
+    console.log(`[capture] after 100ms wait +${Date.now() - t0}ms`)
   }
-  // Get the current location of the cursor
   const point = screen.getCursorScreenPoint()
-  // Get the current display info
-  // Uusers may have multiple displays)
   const display = screen.getDisplayNearestPoint(point)
 
   try {
-    // Screenshot
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: {
-        width: display.size.width * display.scaleFactor,
-        height: display.size.height * display.scaleFactor
-      }
-    })
-    // Match and return the correct display with display_id
-    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
-    console.log('Captured: ', source.thumbnail.getSize())
-    // Thumbnail means a small preview pic the user can identify
-    // Here it means the pic itself
-    lastScreenshot = source.thumbnail
+    console.log(`[capture] before screenshot +${Date.now() - t0}ms`)
+    if (process.platform === 'win32') {
+      const physX = Math.round(display.bounds.x)
+      const physY = Math.round(display.bounds.y)
+      const physW = Math.round(display.size.width * display.scaleFactor)
+      const physH = Math.round(display.size.height * display.scaleFactor)
+      lastScreenshot = await screenshotWithHelper(physX, physY, physW, physH)
+    } else {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: {
+          width: display.size.width * display.scaleFactor,
+          height: display.size.height * display.scaleFactor
+        }
+      })
+      const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
+      lastScreenshot = source.thumbnail
+    }
+    console.log(`[capture] after screenshot +${Date.now() - t0}ms`)
     createOverlayWindow(display)
   } catch (err) {
     console.error('Capture failed:', err)

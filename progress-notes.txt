@@ -1,0 +1,118 @@
+Snidge 进度笔记
+更新：2026-07-01
+================================================================================
+
+## 新机器快速上手（复制粘贴用）
+
+需要安装：
+  - Node.js LTS（https://nodejs.org）
+  - Git（https://git-scm.com）
+
+然后运行：
+
+  git clone https://github.com/RaidenVal/snidge.git
+  cd snidge
+  npm install
+  npm run dev
+
+screenshot-helper.exe 已包含在 repo 里，不需要单独装 .NET SDK。
+
+
+================================================================================
+## 版本状态
+
+v1.0.0  已于 2026-06-08 提交 Microsoft Store 审核，状态 In certification
+v1.1.0  开发中，main 分支
+
+
+================================================================================
+## 截图延迟修复（本次重点）
+
+### 根因
+Windows 上 Electron 的 desktopCapturer.getSources() 慢，是 Chromium 内部 IPC
+和编码开销，不是硬件问题。Mac 完全没有这个问题。
+
+### 各方案实测（3440×1440 显示器，100% DPI）
+
+  desktopCapturer（原始）   screenshot: 478ms   总延迟: ~590ms
+  Helper binary + PNG        screenshot: ~220ms  总延迟: ~330ms  ← 当前
+  Helper binary + 原始BGRA   screenshot: ~290ms  总延迟: ~400ms  （pipe 传输量大，反而慢）
+
+### 当前实现
+  文件：resources/win/screenshot-helper.exe（12.5MB，单文件自包含）
+  源码：tools/screenshot-helper/Program.cs
+  语言：C# .NET 10，GDI CopyFromScreen + PNG 输出到 stdout
+  集成：main/index.ts 里 triggerCapture()，Windows 走 helper，其他平台保留
+        desktopCapturer
+
+### 下一步优化（明天试）
+  并行 spawn 方案，预计总延迟可降到 ~200ms：
+  - 当前：hide 窗口 → 等 100ms → spawn helper → 截图（串行，共 330ms）
+  - 优化：hide 窗口 → 立刻 spawn helper → helper 内部等 ~80ms → 截图（并行）
+  - 改动：C# 加 --delay 参数；Electron 侧去掉显式 100ms 等待
+  - 注意：delay 值要在实机调，太短会出现窗口残影
+
+
+================================================================================
+## v1.1.0 发布前待办
+
+### 必做（上线前不能跳）
+
+[ ] 删掉 triggerCapture() 里的临时时间日志（console.log [capture]...）
+[ ] 实机测试（Palette 取色 / Gradient 取色 / 保存 PNG / Tray / 快捷键）
+[ ] 在 4K PC 上确认延迟有明显改善（原来"很久"，现在应该短很多）
+[ ] 确认打包后 helper 能跑：npm run build:win → 装到 Windows → 测取色
+[ ] 重新生成 THIRD-PARTY-NOTICES.txt（引入了 .NET / System.Drawing.Common）：
+      npx generate-license-file --input package.json --output THIRD-PARTY-NOTICES.txt --overwrite
+[ ] 提交 Store v1.1（v1.0 审核通过后再提交更新）
+
+### 可选（本次可跳）
+
+[ ] 并行 spawn 优化（进一步压缩延迟）
+[ ] 把 resources/win/screenshot-helper.pdb 加进 .gitignore
+[ ] 清理旧的 standalone palette renderer（src/renderer/palette/ 里的旧版本）
+
+
+================================================================================
+## Phase A 合规清单（设计文档要求，上架前确认）
+
+[x] package.json: license = "Apache-2.0"
+[x] electron-builder.yml: appx identity 已配置
+[ ] LICENSE 文件是否在 repo 根目录？（GitHub 自动生成，待确认）
+[ ] NOTICE 文件（内容：Snidge / Copyright 2026 RaidenVal / Apache-2.0）
+[ ] THIRD-PARTY-NOTICES.txt（每次发版重跑 generate-license-file）
+[ ] README 补隐私声明：
+      "Snidge runs entirely on your device. No internet connections, no data sent
+      anywhere, no analytics or telemetry. Screenshot held in memory only (never
+      saved/transmitted); palette PNG saved only when you choose; chosen hotkey
+      stored in a small local settings file. No personal data collected → no
+      personal-data processing under GDPR."
+[ ] Store 审核通过后：README / About 补 Store 链接（上架后才有 deep link）
+
+注意：package.json 里 author 现在是 "RaidenVal"，设计文档建议改成 "Jolene Zou"。
+两者都 OK（RaidenVal 是 GitHub 用户名），保持一致就好，按自己想法定。
+
+
+================================================================================
+## Store 关键信息（快速查阅）
+
+  产品：Partner Center → Snidge（MSIX/PWA，In certification）
+  identityName:        RaidenVal.Snidge
+  publisher:           CN=E8C89A43-CACA-473C-9483-16BB8CB2EE62
+  publisherDisplayName: RaidenVal
+  Store ID:            9ND801HK4RSL
+  Store 链接（上架后）:   https://apps.microsoft.com/detail/9ND801HK4RSL
+  提交指南：https://learn.microsoft.com/en-us/windows/apps/publish/publish-your-app/msix/create-app-submission
+
+
+================================================================================
+## Phase B 记录（将来，不急）
+
+- 付费 + macOS
+- EULA（需律师过一遍）
+- macOS 签名（Apple Developer $99/yr + notarization）
+- Windows EV 签名 / Azure Trusted Signing（SmartScreen 零警告）
+- 离线 license key（本地校验，不联网激活，不引入 GDPR 数据面）
+- 信任中心官网（定价 / EULA / 隐私 / 安全说明 / SBOM / 签名下载）
+- UK 法律主体（sole trader → 规模起来转 Ltd）
+- 营销话术：说"免费开源"而不是"永久免费"

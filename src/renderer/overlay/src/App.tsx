@@ -13,14 +13,12 @@ function App(): React.JSX.Element {
       img.onload = () => {
         const canvas = canvasRef.current
         if (!canvas) return
-        // Get the pen
         const ctx = canvas.getContext('2d')
         if (!ctx) return
 
         canvas.width = window.innerWidth * window.devicePixelRatio
         canvas.height = window.innerHeight * window.devicePixelRatio
 
-        // Paint the image (the whole canvas)
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       }
       img.src = dataURL
