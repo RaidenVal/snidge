@@ -1,5 +1,5 @@
 appId: com.raidenval.snidge
-productName: snidge
+productName: Snidge
 directories:
   buildResources: build
 files:
@@ -14,7 +14,6 @@ asarUnpack:
 win:
   executableName: snidge
   target:
-    - appx
     - nsis
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
