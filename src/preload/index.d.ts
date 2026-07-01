@@ -6,6 +6,7 @@ declare global {
     api: {
       getHotkey: () => Promise<string>
       setHotkey: (newHotkey: string) => Promise<{ success: boolean }>
+      startCapture: (purpose: 'palette') => void
       closeSettingsWindow: () => void
       closePaletteWindow: () => void
       pickColor: (hex: string) => void
