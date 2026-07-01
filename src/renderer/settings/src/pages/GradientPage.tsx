@@ -3,6 +3,7 @@ import copyIcon from '../../../palette/src/assets/copy.png'
 import { hexToRgb, rgbToCmyk } from '../../../palette/src/colorMath'
 import { useEffect, useState } from 'react'
 import { generateGradient, type GradientToneAmount } from '../gradientMath'
+import copyDoneIcon from '../../../palette/src/assets/copydone.png'
 
 function GradientPage(): React.JSX.Element {
   const [gradientColourA, setGradientColourA] = useState<string | null>(null)
@@ -10,6 +11,7 @@ function GradientPage(): React.JSX.Element {
   const [gradientCaptureTarget, setGradientCaptureTarget] = useState<'a' | 'b'>('a')
   const [gradientToneAmount, setGradientToneAmount] = useState<GradientToneAmount>(9)
   const [inspectedGradientColor, setInspectedGradientColor] = useState<string | null>(null)
+  const [copiedGradientFormat, setCopiedGradientFormat] = useState<string | null>(null)
 
   const isGradientEntry = gradientColourA === null
   const gradientColor = inspectedGradientColor ?? gradientColourA ?? '#FFFFFF'
@@ -20,9 +22,22 @@ function GradientPage(): React.JSX.Element {
   const gradientRgb = hexToRgb(gradientColor)
   const gradientCmyk = gradientRgb ? rgbToCmyk(gradientRgb.r, gradientRgb.g, gradientRgb.b) : null
 
+  const gradientHexText = gradientColor
+  const gradientRgbText = gradientRgb ? `${gradientRgb.r}, ${gradientRgb.g}, ${gradientRgb.b}` : ''
+  const gradientCmykText = gradientCmyk
+    ? `${gradientCmyk.c}, ${gradientCmyk.m}, ${gradientCmyk.y}, ${gradientCmyk.k}`
+    : ''
+
   function startGradientCapture(target: 'a' | 'b'): void {
     setGradientCaptureTarget(target)
     window.api.startCapture('gradient')
+  }
+
+  function copyGradientValue(format: string, text: string): void {
+    if (!text) return
+    navigator.clipboard.writeText(text)
+    setCopiedGradientFormat(format)
+    setTimeout(() => setCopiedGradientFormat(null), 2000)
   }
 
   useEffect(() => {
@@ -111,31 +126,37 @@ function GradientPage(): React.JSX.Element {
 
         <div className="pill">
           <span className="label">HEX</span>
-          <span className="value">{gradientColor}</span>
-          <button type="button" className="copy-btn">
-            <img src={copyIcon} alt="Copy" />
+          <span className="value">{gradientHexText}</span>
+          <button
+            type="button"
+            className="copy-btn"
+            onClick={() => copyGradientValue('hex', gradientHexText)}
+          >
+            <img src={copiedGradientFormat === 'hex' ? copyDoneIcon : copyIcon} alt="Copy" />
           </button>
         </div>
 
         <div className="pill">
           <span className="label">RGB</span>
-          <span className="value">
-            {gradientRgb ? `${gradientRgb.r}, ${gradientRgb.g}, ${gradientRgb.b}` : '--'}
-          </span>
-          <button type="button" className="copy-btn">
-            <img src={copyIcon} alt="Copy" />
+          <span className="value">{gradientRgbText}</span>
+          <button
+            type="button"
+            className="copy-btn"
+            onClick={() => copyGradientValue('rgb', gradientRgbText)}
+          >
+            <img src={copiedGradientFormat === 'rgb' ? copyDoneIcon : copyIcon} alt="Copy" />
           </button>
         </div>
 
         <div className="pill">
           <span className="label">CMYK</span>
-          <span className="value">
-            {gradientCmyk
-              ? `${gradientCmyk.c}, ${gradientCmyk.m}, ${gradientCmyk.y}, ${gradientCmyk.k}`
-              : '--'}
-          </span>
-          <button type="button" className="copy-btn">
-            <img src={copyIcon} alt="Copy" />
+          <span className="value">{gradientCmykText || '--'}</span>
+          <button
+            type="button"
+            className="copy-btn"
+            onClick={() => copyGradientValue('cmyk', gradientCmykText)}
+          >
+            <img src={copiedGradientFormat === 'cmyk' ? copyDoneIcon : copyIcon} alt="Copy" />
           </button>
         </div>
 
