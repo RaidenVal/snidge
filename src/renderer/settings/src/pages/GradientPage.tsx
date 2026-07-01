@@ -40,6 +40,14 @@ function GradientPage(): React.JSX.Element {
     setTimeout(() => setCopiedGradientFormat(null), 2000)
   }
 
+  function handleGradientCancel(): void {
+    setGradientColourA(null)
+    setGradientColourB('#FFFFFF')
+    setGradientCaptureTarget('a')
+    setInspectedGradientColor(null)
+    setCopiedGradientFormat(null)
+  }
+
   useEffect(() => {
     return window.api.onGradientColorPicked((hex) => {
       setInspectedGradientColor(null)
@@ -165,10 +173,20 @@ function GradientPage(): React.JSX.Element {
         </button>
 
         <div className="btn-row">
-          <button type="button" className="coral-btn" disabled>
+          <button
+            type="button"
+            className="coral-btn"
+            disabled={isGradientEntry}
+            onClick={() => startGradientCapture('a')}
+          >
             Repick
           </button>
-          <button type="button" className="coral-btn" disabled>
+          <button
+            type="button"
+            className="coral-btn"
+            disabled={isGradientEntry}
+            onClick={handleGradientCancel}
+          >
             Cancel
           </button>
         </div>
