@@ -1,12 +1,39 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import type { IpcRendererEvent } from 'electron'
+
+type Unsubscribe = () => void
+type PickedColorChannel = 'palette-color-picked' | 'gradient-color-picked'
+
+function onPickedColor(channel: PickedColorChannel, callback: (hex: string) => void): Unsubscribe {
+  const listener = (_event: IpcRendererEvent, hex: string): void => {
+    callback(hex)
+  }
+
+  ipcRenderer.on(channel, listener)
+
+  return function unsubscribe(): void {
+    ipcRenderer.removeListener(channel, listener)
+  }
+}
+
+function onPaletteColorPicked(callback: (hex: string) => void): Unsubscribe {
+  return onPickedColor('palette-color-picked', callback)
+}
+
+function onGradientColorPicked(callback: (hex: string) => void): Unsubscribe {
+  return onPickedColor('gradient-color-picked', callback)
+}
 
 // Custom APIs for renderer
 const api = {
   getHotkey: (): Promise<string> => ipcRenderer.invoke('get-hotkey'),
   setHotkey: (newHotkey: string): Promise<{ success: boolean }> =>
     ipcRenderer.invoke('set-hotkey', newHotkey),
-  startCapture: (purpose: 'palette'): void => ipcRenderer.send('start-capture', purpose),
+  startCapture: (purpose: 'palette' | 'gradient'): void =>
+    ipcRenderer.send('start-capture', purpose),
+  onPaletteColorPicked,
+  onGradientColorPicked,
   closeSettingsWindow: (): void => ipcRenderer.send('close-settings-window'),
   closePaletteWindow: (): void => ipcRenderer.send('close-palette-window'),
   pickColor: (hex: string): void => ipcRenderer.send('color-picked', hex),

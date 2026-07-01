@@ -23,6 +23,22 @@
   object-fit: contain;
 }
 
+.palette-result-left {
+  flex: 0 0 320px;
+  width: 320px;
+  height: 320px;
+  transform: translateX(-20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.palette-wheel {
+  width: 320px;
+  height: 320px;
+  display: block;
+}
+
 .capture-right {
   flex: 1;
   display: flex;
