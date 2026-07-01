@@ -23,6 +23,89 @@
   object-fit: contain;
 }
 
+.palette-result-left {
+  flex: 0 0 320px;
+  width: 320px;
+  height: 320px;
+  transform: translateX(-20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.palette-wheel {
+  width: 320px;
+  height: 320px;
+  display: block;
+}
+
+.gradient-left {
+  flex: 0 0 320px;
+  width: 320px;
+  transform: translateX(-20px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.gradient-colour-tabs {
+  display: flex;
+  gap: 22px;
+}
+
+.gradient-colour-tab {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 14px;
+  background: var(--white);
+  color: var(--coral);
+  font-size: 18px;
+  font-weight: 900;
+  text-shadow: 1px 0 currentColor;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 10px 18px rgba(216, 95, 88, 0.12);
+}
+
+.gradient-colour-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 3px;
+  border: 1px solid rgba(216, 95, 88, 0.24);
+  flex: 0 0 auto;
+}
+
+.gradient-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  align-content: center;
+}
+
+.gradient-swatch {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.gradient-grid-4 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.gradient-grid-9 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.gradient-grid-16 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .capture-right {
   flex: 1;
   display: flex;

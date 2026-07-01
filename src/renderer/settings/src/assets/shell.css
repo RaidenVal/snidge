@@ -87,6 +87,15 @@
   padding: 18px 24px;
 }
 
+.page-panel {
+  display: none;
+  height: 100%;
+}
+
+.page-panel.active {
+  display: block;
+}
+
 .title-bar {
   -webkit-app-region: drag;
   background: var(--coral);
