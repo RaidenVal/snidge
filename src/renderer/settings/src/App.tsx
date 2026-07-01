@@ -59,9 +59,17 @@ function App(): React.JSX.Element {
         </nav>
 
         <main className="page-content">
-          {activeTab === 'palette' && <PalettePage />}
-          {activeTab === 'gradient' && <GradientPage />}
-          {activeTab === 'settings' && <SettingsPage />}
+          <div className={activeTab === 'palette' ? 'page-panel active' : 'page-panel'}>
+            <PalettePage />
+          </div>
+
+          <div className={activeTab === 'gradient' ? 'page-panel active' : 'page-panel'}>
+            <GradientPage />
+          </div>
+
+          <div className={activeTab === 'settings' ? 'page-panel active' : 'page-panel'}>
+            <SettingsPage />
+          </div>
         </main>
       </div>
     </div>
