@@ -1,0 +1,68 @@
+h2 {
+  color: var(--coral);
+  text-align: center;
+  font-size: 25px;
+  font-weight: 600;
+  margin-top: 40px;
+  margin-bottom: 30px;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  justify-content: center;
+}
+
+.action label {
+  color: var(--coral);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.hotkey-row {
+  background: var(--white);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  width: 360px;
+}
+
+.hotkey-input {
+  font-family: 'Outfit', sans-serif;
+  color: var(--coral);
+  font-size: 24px;
+  padding: 14px 20px;
+  cursor: pointer;
+  outline: none;
+  flex: 1;
+  background: transparent;
+  border: none;
+}
+
+.reset-button {
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.reset-button img {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.hotkey-row.listening {
+  background: var(--coral-dark);
+}
+
+.hotkey-row.listening .hotkey-input {
+  color: white;
+}
+
+.hotkey-row.error {
+  outline: 2px solid var(--error-red);
+  outline-offset: -2px;
+}

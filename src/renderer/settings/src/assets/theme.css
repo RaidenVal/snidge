@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+:root {
+  --coral: #f3776e;
+  --blush: #FEEFF1;
+  --white: #ffffff;
+  --text-dark: #86878A;
+  --coral-dark: #D85F58;
+  --error-red: #DC3545;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+body {
+  margin: 0;
+  background: var(--blush);
+  font-family: 'Outfit', sans-serif;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+}
