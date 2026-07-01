@@ -27,6 +27,9 @@ function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
   // Opening a new one
   if (settingsWindow && !settingsWindow.isDestroyed()) {
+    if (!settingsWindow.isVisible()) {
+      settingsWindow.show()
+    }
     settingsWindow.focus()
     return
   }
@@ -164,10 +167,7 @@ function createPaletteWindow(): void {
 async function triggerCapture(): Promise<void> {
   if (paletteWindow && !paletteWindow.isDestroyed()) return
   if (settingsWindow && !settingsWindow.isDestroyed()) {
-    await new Promise<void>((resolve) => {
-      settingsWindow?.once('closed', () => resolve())
-      settingsWindow?.close()
-    })
+    settingsWindow.hide()
     await new Promise((r) => setTimeout(r, 100))
   }
   // Get the current location of the cursor
@@ -280,6 +280,11 @@ app.whenReady().then(() => {
     await writeFile(result.filePath, buffer)
 
     return { success: true, path: result.filePath }
+  })
+
+  ipcMain.on('start-capture', (_event, purpose: 'palette') => {
+    if (purpose !== 'palette') return
+    triggerCapture()
   })
 
   ipcMain.on('close-settings-window', () => {
