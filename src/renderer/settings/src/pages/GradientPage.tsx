@@ -40,6 +40,58 @@ function GradientPage(): React.JSX.Element {
     setTimeout(() => setCopiedGradientFormat(null), 2000)
   }
 
+  function drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ): void {
+    const r = Math.min(radius, width / 2, height / 2)
+
+    ctx.beginPath()
+    ctx.moveTo(x + r, y)
+    ctx.arcTo(x + width, y, x + width, y + height, r)
+    ctx.arcTo(x + width, y + height, x, y + height, r)
+    ctx.arcTo(x, y + height, x, y, r)
+    ctx.arcTo(x, y, x + width, y, r)
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  function exportGradientPng(): string | null {
+    if (!gradientColours.length) return null
+
+    const canvasSize = 320
+    const gap = 22
+    const columns = Math.sqrt(gradientToneAmount)
+    const swatchSize = (canvasSize - gap * (columns - 1)) / columns
+    const canvas = document.createElement('canvas')
+    canvas.width = canvasSize
+    canvas.height = canvasSize
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    gradientColours.forEach((colour, index) => {
+      const column = index % columns
+      const row = Math.floor(index / columns)
+
+      ctx.fillStyle = colour
+      drawRoundedRect(
+        ctx,
+        column * (swatchSize + gap),
+        row * (swatchSize + gap),
+        swatchSize,
+        swatchSize,
+        16
+      )
+    })
+
+    return canvas.toDataURL('image/png')
+  }
+
   function handleGradientCancel(): void {
     setGradientColourA(null)
     setGradientColourB('#FFFFFF')
@@ -168,7 +220,19 @@ function GradientPage(): React.JSX.Element {
           </button>
         </div>
 
-        <button type="button" className="coral-btn" disabled>
+        <button
+          type="button"
+          className="coral-btn"
+          disabled={isGradientEntry}
+          onClick={async () => {
+            const dataURL = exportGradientPng()
+            if (!dataURL) return
+            const result = await window.api.savePng(dataURL, 'gradient')
+            if (result.success) {
+              console.log('Save to: ', result.path)
+            }
+          }}
+        >
           Save colour palette
         </button>
 
