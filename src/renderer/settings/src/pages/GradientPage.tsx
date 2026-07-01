@@ -233,7 +233,7 @@ function GradientPage(): React.JSX.Element {
             }
           }}
         >
-          Save colour palette
+          Save colour gradient
         </button>
 
         <div className="btn-row">
