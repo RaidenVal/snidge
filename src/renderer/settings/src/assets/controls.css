@@ -1,0 +1,118 @@
+.pill {
+  background: var(--white);
+  border-radius: 9999px;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pill.coral {
+  background: var(--coral);
+  justify-content: space-between;
+}
+
+.label {
+  color: var(--coral);
+  font-weight: 600;
+  font-size: 20px;
+  min-width: 60px;
+}
+
+.label-white {
+  color: white;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.value {
+  color: var(--text-dark);
+  flex: 1;
+  text-align: center;
+  font-size: 20px;
+}
+
+.amount-select {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding: 4px 14px;
+  outline: none;
+  border-radius: 8px;
+  display: flex;
+  text-align: center;
+  text-align-last: center;
+}
+
+.amount-select:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.amount-select:disabled {
+  cursor: default;
+}
+
+.amount-select:disabled:hover {
+  background: transparent;
+}
+
+.amount-select option {
+  color: white;
+  background: var(--coral);
+}
+
+.copy-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--coral);
+  padding: 0;
+}
+
+.copy-btn img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
+.copy-btn:hover {
+  opacity: 0.7;
+}
+
+.coral-btn {
+  background: var(--coral);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  padding: 6px;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.coral-btn:hover {
+  opacity: 0.9;
+}
+
+.coral-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.coral-btn:disabled:hover {
+  opacity: 0.55;
+}
+
+.btn-row {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-row .coral-btn {
+  flex: 1;
+}
