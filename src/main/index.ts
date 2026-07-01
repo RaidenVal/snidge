@@ -23,6 +23,9 @@ let paletteWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
 let lastPickedColor: string | null = null
 
+type CapturePurpose = 'palette'
+let capturePurpose: CapturePurpose = 'palette'
+
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
   // Opening a new one
@@ -164,7 +167,8 @@ function createPaletteWindow(): void {
   })
 }
 
-async function triggerCapture(): Promise<void> {
+async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
+  capturePurpose = purpose
   if (paletteWindow && !paletteWindow.isDestroyed()) return
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.hide()
@@ -282,9 +286,9 @@ app.whenReady().then(() => {
     return { success: true, path: result.filePath }
   })
 
-  ipcMain.on('start-capture', (_event, purpose: 'palette') => {
+  ipcMain.on('start-capture', (_event, purpose: CapturePurpose) => {
     if (purpose !== 'palette') return
-    triggerCapture()
+    triggerCapture(purpose)
   })
 
   ipcMain.on('close-settings-window', () => {
@@ -295,7 +299,9 @@ app.whenReady().then(() => {
     console.log('Color pick: ', hex)
     lastPickedColor = hex
     overlayWindow?.close()
-    createPaletteWindow()
+    if (capturePurpose === 'palette') {
+      createPaletteWindow()
+    }
   })
 
   ipcMain.on('close-palette-window', () => {
