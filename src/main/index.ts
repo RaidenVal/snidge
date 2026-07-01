@@ -19,11 +19,10 @@ import { writeFile } from 'fs/promises'
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
-let paletteWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
 let lastPickedColor: string | null = null
 
-type CapturePurpose = 'palette'
+type CapturePurpose = 'palette' | 'gradient'
 let capturePurpose: CapturePurpose = 'palette'
 
 function createSettingsWindow(): void {
@@ -129,47 +128,24 @@ function createOverlayWindow(display: Display): void {
   })
 }
 
-function createPaletteWindow(): void {
-  // If paletteWindow already exists, focus on it instead of
-  // Opening a new one
-  if (paletteWindow && !paletteWindow.isDestroyed()) {
-    paletteWindow.focus()
+function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-picked', hex: string): void {
+  const sendColor = (): void => {
+    settingsWindow?.show()
+    settingsWindow?.focus()
+    settingsWindow?.webContents.send(channel, hex)
+  }
+
+  if (!settingsWindow || settingsWindow.isDestroyed()) {
+    createSettingsWindow()
+    settingsWindow?.webContents.once('did-finish-load', sendColor)
     return
   }
 
-  // Create paletteWindow ui
-  paletteWindow = new BrowserWindow({
-    frame: false,
-    width: 720,
-    height: 460,
-    title: 'Palette',
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
-    }
-  })
-
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    // When it is the local/dev environment, load the url (localhost: xxxx)
-    paletteWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/palette/index.html`)
-  } else {
-    // When it is the production/live environment, load html file
-    paletteWindow.loadFile(join(__dirname, '../renderer/palette/index.html'))
-  }
-
-  // Clear the reference when the window is destroyed,
-  // so the next createPaletteWindow() call creates a fresh one
-  paletteWindow.on('closed', () => {
-    paletteWindow = null
-  })
+  sendColor()
 }
 
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
   capturePurpose = purpose
-  if (paletteWindow && !paletteWindow.isDestroyed()) return
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     settingsWindow.hide()
     await new Promise((r) => setTimeout(r, 100))
@@ -287,7 +263,6 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('start-capture', (_event, purpose: CapturePurpose) => {
-    if (purpose !== 'palette') return
     triggerCapture(purpose)
   })
 
@@ -299,25 +274,22 @@ app.whenReady().then(() => {
     console.log('Color pick: ', hex)
     lastPickedColor = hex
     overlayWindow?.close()
+
     if (capturePurpose === 'palette') {
-      createPaletteWindow()
+      sendColorToSettings('palette-color-picked', hex)
+    }
+
+    if (capturePurpose === 'gradient') {
+      sendColorToSettings('gradient-color-picked', hex)
     }
   })
 
   ipcMain.on('close-palette-window', () => {
-    paletteWindow?.close()
+    settingsWindow?.close()
   })
 
   ipcMain.on('repick', () => {
-    if (paletteWindow) {
-      // Listen first to make sure palette window is fully closed
-      paletteWindow.once('closed', () => {
-        setTimeout(() => triggerCapture(), 800)
-      })
-      paletteWindow.close()
-    } else {
-      triggerCapture()
-    }
+    triggerCapture()
   })
   createSettingsWindow()
 })
