@@ -223,13 +223,13 @@ app.whenReady().then(() => {
     }
   ])
 
-  tray.setContextMenu(contextMenu)
+  tray.on('click', () => {
+    createSettingsWindow()
+  })
 
-  if (process.platform === 'win32') {
-    tray.on('click', () => {
-      tray?.popUpContextMenu()
-    })
-  }
+  tray.on('right-click', () => {
+    tray?.popUpContextMenu(contextMenu)
+  })
 
   // Hotkey registration
   const hotkey = store.get('hotkey')
