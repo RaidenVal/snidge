@@ -214,7 +214,7 @@ function App(): React.JSX.Element {
             onClick={async () => {
               const dataURL = await exportPng()
               if (!dataURL) return
-              const result = await window.api.savePalette(dataURL)
+              const result = await window.api.savePng(dataURL, 'palette')
               if (result.success) {
                 console.log('Save to: ', result.path)
               } else if (result.canceled) {
