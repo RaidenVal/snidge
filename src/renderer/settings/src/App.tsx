@@ -90,17 +90,17 @@ function App(): React.JSX.Element {
 
         <main className="page-content">
           {activeTab === 'palette' && (
-            <section className="palette-body">
+            <section className="capture-body">
               <button
                 type="button"
-                className="palette-cat-button"
+                className="capture-cat-button"
                 aria-label="Start colour capture"
                 onClick={() => window.api.startCapture('palette')}
               >
                 <img src={snidgeCatPaletteEntry} alt="" />
               </button>
 
-              <div className="palette-right">
+              <div className="capture-right">
                 <div className="pill coral">
                   <span className="label-white">Colour tone amount</span>
                   <select
@@ -186,17 +186,17 @@ function App(): React.JSX.Element {
           )}
 
           {activeTab === 'gradient' && (
-            <section className="palette-body">
+            <section className="capture-body">
               <button
                 type="button"
-                className="palette-cat-button"
+                className="capture-cat-button"
                 aria-label="Start gradient colour capture"
                 onClick={() => console.log('gradient colour A capture clicked')}
               >
                 <img src={snidgeCatPaletteEntry} alt="" />
               </button>
 
-              <div className="palette-right">
+              <div className="capture-right">
                 <div className="pill coral">
                   <span className="label-white">Colour tone amount</span>
                   <select className="amount-select" value={9} disabled>

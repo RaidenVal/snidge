@@ -1,0 +1,32 @@
+.capture-body {
+  height: 100%;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.capture-cat-button {
+  flex: 0 0 320px;
+  width: 320px;
+  height: 320px;
+  transform: translateX(-20px);
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.capture-cat-button img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.capture-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  justify-content: center;
+}
