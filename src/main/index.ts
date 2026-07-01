@@ -240,10 +240,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-picked-color', () => lastPickedColor)
 
-  ipcMain.handle('save-palette', async (_event, dataURL: string) => {
+  ipcMain.handle('save-png', async (_event, dataURL: string, fileNamePrefix: string) => {
     // 1. Pop the built-in save window from the operation system
     const result = await dialog.showSaveDialog({
-      defaultPath: `palette-${Date.now()}.png`,
+      defaultPath: `${fileNamePrefix}-${Date.now()}.png`,
       filters: [{ name: 'PNG Image', extensions: ['png'] }]
     })
 
