@@ -9,9 +9,10 @@ function GradientPage(): React.JSX.Element {
   const [gradientColourB, setGradientColourB] = useState('#FFFFFF')
   const [gradientCaptureTarget, setGradientCaptureTarget] = useState<'a' | 'b'>('a')
   const [gradientToneAmount, setGradientToneAmount] = useState<GradientToneAmount>(9)
+  const [inspectedGradientColor, setInspectedGradientColor] = useState<string | null>(null)
 
   const isGradientEntry = gradientColourA === null
-  const gradientColor = gradientColourA ?? '#FFFFFF'
+  const gradientColor = inspectedGradientColor ?? gradientColourA ?? '#FFFFFF'
   const gradientColours = gradientColourA
     ? generateGradient(gradientColourA, gradientColourB, gradientToneAmount)
     : []
@@ -26,6 +27,8 @@ function GradientPage(): React.JSX.Element {
 
   useEffect(() => {
     return window.api.onGradientColorPicked((hex) => {
+      setInspectedGradientColor(null)
+
       if (gradientCaptureTarget === 'a') {
         setGradientColourA(hex)
         return
@@ -81,6 +84,7 @@ function GradientPage(): React.JSX.Element {
                 className="gradient-swatch"
                 style={{ backgroundColor: colour }}
                 aria-label={colour}
+                onClick={() => setInspectedGradientColor(colour)}
               />
             ))}
           </div>
@@ -94,7 +98,10 @@ function GradientPage(): React.JSX.Element {
             className="amount-select"
             value={gradientToneAmount}
             disabled={isGradientEntry}
-            onChange={(e) => setGradientToneAmount(Number(e.target.value) as GradientToneAmount)}
+            onChange={(e) => {
+              setInspectedGradientColor(null)
+              setGradientToneAmount(Number(e.target.value) as GradientToneAmount)
+            }}
           >
             <option value={4}>4</option>
             <option value={9}>9</option>
