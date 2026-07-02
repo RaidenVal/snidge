@@ -6,7 +6,6 @@ import {
   Tray,
   globalShortcut,
   desktopCapturer,
-  nativeImage,
   screen,
   dialog
 } from 'electron'
@@ -22,10 +21,22 @@ let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
+let lastScreenshotDataURL: string | null = null
+let lastScreenshotSize: { width: number; height: number } | null = null
 let lastPickedColor: string | null = null
+let activeCaptureStartedAt: number | null = null
 
 type CapturePurpose = 'palette' | 'gradient'
 let capturePurpose: CapturePurpose = 'palette'
+
+function logCapture(message: string, startedAt: number | null = activeCaptureStartedAt): void {
+  if (!startedAt) {
+    console.log(`[capture] ${message}`)
+    return
+  }
+
+  console.log(`[capture] ${message} +${Date.now() - startedAt}ms`)
+}
 
 function createSettingsWindow(): void {
   // If settings window already exists, focus on it instead of
@@ -79,10 +90,12 @@ function createSettingsWindow(): void {
 function createOverlayWindow(display: Display): void {
   // Check if overlayWindow already exits
   if (overlayWindow && !overlayWindow.isDestroyed()) {
+    logCapture('overlay already exists; focusing')
     overlayWindow.focus()
     return
   }
 
+  logCapture('creating overlay window')
   overlayWindow = new BrowserWindow({
     show: false,
     frame: false,
@@ -102,7 +115,7 @@ function createOverlayWindow(display: Display): void {
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
 
   overlayWindow.once('ready-to-show', () => {
-    console.log(`[capture] overlay ready-to-show ${Date.now()}`)
+    logCapture('overlay ready-to-show')
     overlayWindow?.show()
     if (process.platform === 'win32') {
       overlayWindow?.setFullScreen(true)
@@ -110,11 +123,17 @@ function createOverlayWindow(display: Display): void {
     overlayWindow?.focus()
   })
 
+  overlayWindow.webContents.once('did-finish-load', () => {
+    logCapture('overlay did-finish-load')
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)
+    logCapture('overlay loadURL requested')
     overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay/index.html`)
   } else {
     // When it is the production/live environment, load html file
+    logCapture('overlay loadFile requested')
     overlayWindow.loadFile(join(__dirname, '../renderer/overlay/index.html'))
   }
 
@@ -147,24 +166,46 @@ function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-p
   sendColor()
 }
 
-function screenshotWithHelper(x: number, y: number, w: number, h: number): Promise<NativeImage> {
+function screenshotWithHelper(
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): Promise<{ dataURL: string; size: { width: number; height: number } }> {
   const helperPath = is.dev
     ? join(app.getAppPath(), 'resources', 'win', 'screenshot-helper.exe')
     : join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'win', 'screenshot-helper.exe')
 
   return new Promise((resolve, reject) => {
+    const helperStartedAt = Date.now()
+    logCapture(`helper spawn requested region=${x},${y} ${w}x${h}`)
+
     const proc = spawn(helperPath, [String(x), String(y), String(w), String(h)])
     const chunks: Buffer[] = []
 
     proc.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
-    proc.stderr.on('data', (data: Buffer) => console.error('[screenshot-helper]', data.toString()))
+    proc.stderr.on('data', (data: Buffer) => {
+      const message = data.toString().trim()
+      if (message) console.error(`[screenshot-helper] ${message}`)
+    })
 
     proc.on('close', (code) => {
+      const buffer = Buffer.concat(chunks)
+      logCapture(
+        `helper closed code=${code} elapsed=${Date.now() - helperStartedAt}ms bytes=${buffer.length}`
+      )
+
       if (code !== 0) {
         reject(new Error(`screenshot-helper exited with code ${code}`))
         return
       }
-      resolve(nativeImage.createFromBuffer(Buffer.concat(chunks)))
+
+      const encodeStartedAt = Date.now()
+      const dataURL = `data:image/png;base64,${buffer.toString('base64')}`
+      logCapture(
+        `helper dataURL cached elapsed=${Date.now() - encodeStartedAt}ms bytes=${dataURL.length}`
+      )
+      resolve({ dataURL, size: { width: w, height: h } })
     })
 
     proc.on('error', reject)
@@ -173,25 +214,35 @@ function screenshotWithHelper(x: number, y: number, w: number, h: number): Promi
 
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
   const t0 = Date.now()
-  console.log('[capture] start')
+  activeCaptureStartedAt = t0
+  logCapture(`start purpose=${purpose} platform=${process.platform}`, t0)
   capturePurpose = purpose
+  lastScreenshot = null
+  lastScreenshotDataURL = null
+  lastScreenshotSize = null
   if (settingsWindow && !settingsWindow.isDestroyed()) {
-    console.log(`[capture] hiding window +${Date.now() - t0}ms`)
+    logCapture('hiding window', t0)
     settingsWindow.hide()
     await new Promise((r) => setTimeout(r, 100))
-    console.log(`[capture] after 100ms wait +${Date.now() - t0}ms`)
+    logCapture('after 100ms wait', t0)
   }
   const point = screen.getCursorScreenPoint()
   const display = screen.getDisplayNearestPoint(point)
+  logCapture(
+    `display id=${display.id} bounds=${display.bounds.x},${display.bounds.y} ${display.bounds.width}x${display.bounds.height} size=${display.size.width}x${display.size.height} scale=${display.scaleFactor}`,
+    t0
+  )
 
   try {
-    console.log(`[capture] before screenshot +${Date.now() - t0}ms`)
+    logCapture('before screenshot', t0)
     if (process.platform === 'win32') {
       const physX = Math.round(display.bounds.x)
       const physY = Math.round(display.bounds.y)
       const physW = Math.round(display.size.width * display.scaleFactor)
       const physH = Math.round(display.size.height * display.scaleFactor)
-      lastScreenshot = await screenshotWithHelper(physX, physY, physW, physH)
+      const screenshot = await screenshotWithHelper(physX, physY, physW, physH)
+      lastScreenshotDataURL = screenshot.dataURL
+      lastScreenshotSize = screenshot.size
     } else {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
@@ -202,8 +253,10 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
       })
       const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
       lastScreenshot = source.thumbnail
+      lastScreenshotSize = source.thumbnail.getSize()
     }
-    console.log(`[capture] after screenshot +${Date.now() - t0}ms`)
+    const size = lastScreenshotSize
+    logCapture(`after screenshot image=${size.width}x${size.height}`, t0)
     createOverlayWindow(display)
   } catch (err) {
     console.error('Capture failed:', err)
@@ -268,7 +321,19 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('get-screenshot', () => {
-    return lastScreenshot?.toDataURL() ?? null
+    const startedAt = Date.now()
+    if (lastScreenshotDataURL) {
+      logCapture(
+        `get-screenshot cached dataURL elapsed=${Date.now() - startedAt}ms bytes=${lastScreenshotDataURL.length}`
+      )
+      return lastScreenshotDataURL
+    }
+
+    const dataURL = lastScreenshot?.toDataURL() ?? null
+    logCapture(
+      `get-screenshot toDataURL elapsed=${Date.now() - startedAt}ms bytes=${dataURL?.length ?? 0}`
+    )
+    return dataURL
   })
 
   ipcMain.handle('get-picked-color', () => lastPickedColor)
