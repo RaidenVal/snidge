@@ -6,7 +6,6 @@ import {
   Tray,
   globalShortcut,
   desktopCapturer,
-  nativeImage,
   screen,
   dialog
 } from 'electron'
@@ -22,6 +21,8 @@ let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
+let lastScreenshotDataURL: string | null = null
+let lastScreenshotSize: { width: number; height: number } | null = null
 let lastPickedColor: string | null = null
 let activeCaptureStartedAt: number | null = null
 
@@ -165,7 +166,12 @@ function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-p
   sendColor()
 }
 
-function screenshotWithHelper(x: number, y: number, w: number, h: number): Promise<NativeImage> {
+function screenshotWithHelper(
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): Promise<{ dataURL: string; size: { width: number; height: number } }> {
   const helperPath = is.dev
     ? join(app.getAppPath(), 'resources', 'win', 'screenshot-helper.exe')
     : join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'win', 'screenshot-helper.exe')
@@ -194,10 +200,12 @@ function screenshotWithHelper(x: number, y: number, w: number, h: number): Promi
         return
       }
 
-      const image = nativeImage.createFromBuffer(buffer)
-      const size = image.getSize()
-      logCapture(`helper native image size=${size.width}x${size.height}`)
-      resolve(image)
+      const encodeStartedAt = Date.now()
+      const dataURL = `data:image/png;base64,${buffer.toString('base64')}`
+      logCapture(
+        `helper dataURL cached elapsed=${Date.now() - encodeStartedAt}ms bytes=${dataURL.length}`
+      )
+      resolve({ dataURL, size: { width: w, height: h } })
     })
 
     proc.on('error', reject)
@@ -209,6 +217,9 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
   activeCaptureStartedAt = t0
   logCapture(`start purpose=${purpose} platform=${process.platform}`, t0)
   capturePurpose = purpose
+  lastScreenshot = null
+  lastScreenshotDataURL = null
+  lastScreenshotSize = null
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     logCapture('hiding window', t0)
     settingsWindow.hide()
@@ -229,7 +240,9 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
       const physY = Math.round(display.bounds.y)
       const physW = Math.round(display.size.width * display.scaleFactor)
       const physH = Math.round(display.size.height * display.scaleFactor)
-      lastScreenshot = await screenshotWithHelper(physX, physY, physW, physH)
+      const screenshot = await screenshotWithHelper(physX, physY, physW, physH)
+      lastScreenshotDataURL = screenshot.dataURL
+      lastScreenshotSize = screenshot.size
     } else {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
@@ -240,8 +253,9 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
       })
       const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
       lastScreenshot = source.thumbnail
+      lastScreenshotSize = source.thumbnail.getSize()
     }
-    const size = lastScreenshot.getSize()
+    const size = lastScreenshotSize
     logCapture(`after screenshot image=${size.width}x${size.height}`, t0)
     createOverlayWindow(display)
   } catch (err) {
@@ -308,6 +322,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle('get-screenshot', () => {
     const startedAt = Date.now()
+    if (lastScreenshotDataURL) {
+      logCapture(
+        `get-screenshot cached dataURL elapsed=${Date.now() - startedAt}ms bytes=${lastScreenshotDataURL.length}`
+      )
+      return lastScreenshotDataURL
+    }
+
     const dataURL = lastScreenshot?.toDataURL() ?? null
     logCapture(
       `get-screenshot toDataURL elapsed=${Date.now() - startedAt}ms bytes=${dataURL?.length ?? 0}`
