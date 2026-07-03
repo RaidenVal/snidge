@@ -3,6 +3,7 @@ import snidgeCatPaletteEntry from '../assets/snidge_cat_palette_entry.png'
 import copyIcon from '../../../palette/src/assets/copy.png'
 import copyDoneIcon from '../../../palette/src/assets/copydone.png'
 import { generatePalette, hexToRgb, rgbToCmyk } from '../../../palette/src/colorMath'
+import { blurFocusedElement } from '../focus'
 
 function PalettePage(): React.JSX.Element {
   const [count, setCount] = useState(10)
@@ -13,6 +14,7 @@ function PalettePage(): React.JSX.Element {
 
   useEffect(() => {
     return window.api.onPaletteColorPicked((hex) => {
+      blurFocusedElement()
       setPaletteColor(hex)
       setActiveColor(hex)
     })

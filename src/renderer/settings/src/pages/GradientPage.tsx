@@ -4,6 +4,7 @@ import { hexToRgb, rgbToCmyk } from '../../../palette/src/colorMath'
 import { useEffect, useState } from 'react'
 import { generateGradient, type GradientToneAmount } from '../gradientMath'
 import copyDoneIcon from '../../../palette/src/assets/copydone.png'
+import { blurFocusedElement } from '../focus'
 
 function GradientPage(): React.JSX.Element {
   const [gradientColourA, setGradientColourA] = useState<string | null>(null)
@@ -102,6 +103,7 @@ function GradientPage(): React.JSX.Element {
 
   useEffect(() => {
     return window.api.onGradientColorPicked((hex) => {
+      blurFocusedElement()
       setInspectedGradientColor(null)
 
       if (gradientCaptureTarget === 'a') {
