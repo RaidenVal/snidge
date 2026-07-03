@@ -9,12 +9,16 @@ declare global {
       startCapture: (purpose: 'palette' | 'gradient') => void
       onPaletteColorPicked: (callback: (hex: string) => void) => () => void
       onGradientColorPicked: (callback: (hex: string) => void) => () => void
+      onSettingsTabRequested: (
+        callback: (tab: 'palette' | 'gradient' | 'settings') => void
+      ) => () => void
       closeSettingsWindow: () => void
       closePaletteWindow: () => void
       pickColor: (hex: string) => void
       repick: () => void
       getPickedColor: () => Promise<string | null>
       getScreenshot: () => Promise<string | null>
+      logOverlay: (message: string) => void
       savePng: (
         dataURL: string,
         fileNamePrefix: string

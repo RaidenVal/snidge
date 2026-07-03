@@ -8,6 +8,8 @@ function App(): React.JSX.Element {
 
   useEffect(() => {
     window.api.getScreenshot().then((dataURL) => {
+      console.log('[overlay] received screenshot dataURL')
+      window.api.logOverlay('received screenshot dataURL')
       if (!dataURL || !canvasRef.current) return
       const img = new Image()
       img.onload = () => {
@@ -20,6 +22,8 @@ function App(): React.JSX.Element {
         canvas.height = window.innerHeight * window.devicePixelRatio
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        console.log('[overlay] image drawn to canvas')
+        window.api.logOverlay('image drawn to canvas')
       }
       img.src = dataURL
     })

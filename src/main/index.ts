@@ -6,7 +6,6 @@ import {
   Tray,
   globalShortcut,
   desktopCapturer,
-  nativeImage,
   screen,
   dialog
 } from 'electron'
@@ -16,18 +15,48 @@ import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
-import { spawn } from 'child_process'
+import {
+  channelForCapturePurpose,
+  type CapturePurpose,
+  type PickedColorChannel
+} from './captureRouting'
+import { resolveMacSamplerPath, runMacSampler } from './macosSampler'
+import { hideWindow } from './windowActions'
+
+type SettingsTab = 'palette' | 'gradient' | 'settings'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let lastScreenshot: NativeImage | null = null
+let lastScreenshotSize: { width: number; height: number } | null = null
 let lastPickedColor: string | null = null
-
-type CapturePurpose = 'palette' | 'gradient'
+let activeCaptureStartedAt: number | null = null
 let capturePurpose: CapturePurpose = 'palette'
 
-function createSettingsWindow(): void {
+function logCapture(message: string, startedAt: number | null = activeCaptureStartedAt): void {
+  if (!startedAt) {
+    console.log(`[capture] ${message}`)
+    return
+  }
+
+  console.log(`[capture] ${message} +${Date.now() - startedAt}ms`)
+}
+
+function requestSettingsTab(tab: SettingsTab): void {
+  settingsWindow?.webContents.send('settings-tab-requested', tab)
+}
+
+function settingsWindowURL(tab?: SettingsTab): string {
+  const baseURL = `${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`
+  if (!tab) {
+    return baseURL
+  }
+
+  return `${baseURL}?tab=${encodeURIComponent(tab)}`
+}
+
+function createSettingsWindow(tab?: SettingsTab): void {
   // If settings window already exists, focus on it instead of
   // Opening a new one
   if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -35,6 +64,9 @@ function createSettingsWindow(): void {
       settingsWindow.show()
     }
     settingsWindow.focus()
+    if (tab) {
+      requestSettingsTab(tab)
+    }
     return
   }
 
@@ -60,10 +92,11 @@ function createSettingsWindow(): void {
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)
-    settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`)
+    settingsWindow.loadURL(settingsWindowURL(tab))
   } else {
     // When it is the production/live environment, load html file
-    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'))
+    const loadOptions = tab ? { query: { tab } } : undefined
+    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'), loadOptions)
   }
 
   // Clear the reference when the window is destroyed,
@@ -79,10 +112,12 @@ function createSettingsWindow(): void {
 function createOverlayWindow(display: Display): void {
   // Check if overlayWindow already exits
   if (overlayWindow && !overlayWindow.isDestroyed()) {
+    logCapture('overlay already exists; focusing')
     overlayWindow.focus()
     return
   }
 
+  logCapture('creating overlay window')
   overlayWindow = new BrowserWindow({
     show: false,
     frame: false,
@@ -102,7 +137,7 @@ function createOverlayWindow(display: Display): void {
   overlayWindow.setAlwaysOnTop(true, 'screen-saver')
 
   overlayWindow.once('ready-to-show', () => {
-    console.log(`[capture] overlay ready-to-show ${Date.now()}`)
+    logCapture('overlay ready-to-show')
     overlayWindow?.show()
     if (process.platform === 'win32') {
       overlayWindow?.setFullScreen(true)
@@ -110,11 +145,17 @@ function createOverlayWindow(display: Display): void {
     overlayWindow?.focus()
   })
 
+  overlayWindow.webContents.once('did-finish-load', () => {
+    logCapture('overlay did-finish-load')
+  })
+
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)
+    logCapture('overlay loadURL requested')
     overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay/index.html`)
   } else {
     // When it is the production/live environment, load html file
+    logCapture('overlay loadFile requested')
     overlayWindow.loadFile(join(__dirname, '../renderer/overlay/index.html'))
   }
 
@@ -131,7 +172,17 @@ function createOverlayWindow(display: Display): void {
   })
 }
 
-function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-picked', hex: string): void {
+function showSettingsWindow(): void {
+  if (!settingsWindow || settingsWindow.isDestroyed()) {
+    createSettingsWindow()
+    return
+  }
+
+  settingsWindow.show()
+  settingsWindow.focus()
+}
+
+function sendColorToSettings(channel: PickedColorChannel, hex: string): void {
   const sendColor = (): void => {
     settingsWindow?.show()
     settingsWindow?.focus()
@@ -147,63 +198,82 @@ function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-p
   sendColor()
 }
 
-function screenshotWithHelper(x: number, y: number, w: number, h: number): Promise<NativeImage> {
-  const helperPath = is.dev
-    ? join(app.getAppPath(), 'resources', 'win', 'screenshot-helper.exe')
-    : join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'win', 'screenshot-helper.exe')
+function handlePickedColor(hex: string): void {
+  console.log('Color pick: ', hex)
+  lastPickedColor = hex
+  overlayWindow?.close()
+  sendColorToSettings(channelForCapturePurpose(capturePurpose), hex)
+}
 
-  return new Promise((resolve, reject) => {
-    const proc = spawn(helperPath, [String(x), String(y), String(w), String(h)])
-    const chunks: Buffer[] = []
+async function triggerMacSystemCapture(startedAt: number): Promise<void> {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    logCapture('hiding window', startedAt)
+    settingsWindow.hide()
+  }
 
-    proc.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
-    proc.stderr.on('data', (data: Buffer) => console.error('[screenshot-helper]', data.toString()))
-
-    proc.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`screenshot-helper exited with code ${code}`))
-        return
-      }
-      resolve(nativeImage.createFromBuffer(Buffer.concat(chunks)))
-    })
-
-    proc.on('error', reject)
+  const helperPath = resolveMacSamplerPath({
+    isPackaged: app.isPackaged,
+    appPath: app.getAppPath(),
+    resourcesPath: process.resourcesPath
   })
+
+  try {
+    logCapture(`before mac sampler path=${helperPath}`, startedAt)
+    const hex = await runMacSampler(helperPath)
+    if (!hex) {
+      logCapture('mac sampler canceled', startedAt)
+      showSettingsWindow()
+      return
+    }
+
+    logCapture(`mac sampler picked ${hex}`, startedAt)
+    handlePickedColor(hex)
+  } catch (err) {
+    console.error('macOS sampler failed:', err)
+    showSettingsWindow()
+  }
 }
 
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
   const t0 = Date.now()
-  console.log('[capture] start')
+  activeCaptureStartedAt = t0
+  logCapture(`start purpose=${purpose} platform=${process.platform}`, t0)
   capturePurpose = purpose
+  lastScreenshot = null
+  lastScreenshotSize = null
+
+  if (process.platform === 'darwin') {
+    await triggerMacSystemCapture(t0)
+    return
+  }
+
   if (settingsWindow && !settingsWindow.isDestroyed()) {
-    console.log(`[capture] hiding window +${Date.now() - t0}ms`)
+    logCapture('hiding window', t0)
     settingsWindow.hide()
     await new Promise((r) => setTimeout(r, 100))
-    console.log(`[capture] after 100ms wait +${Date.now() - t0}ms`)
+    logCapture('after 100ms wait', t0)
   }
   const point = screen.getCursorScreenPoint()
   const display = screen.getDisplayNearestPoint(point)
+  logCapture(
+    `display id=${display.id} bounds=${display.bounds.x},${display.bounds.y} ${display.bounds.width}x${display.bounds.height} size=${display.size.width}x${display.size.height} scale=${display.scaleFactor}`,
+    t0
+  )
 
   try {
-    console.log(`[capture] before screenshot +${Date.now() - t0}ms`)
-    if (process.platform === 'win32') {
-      const physX = Math.round(display.bounds.x)
-      const physY = Math.round(display.bounds.y)
-      const physW = Math.round(display.size.width * display.scaleFactor)
-      const physH = Math.round(display.size.height * display.scaleFactor)
-      lastScreenshot = await screenshotWithHelper(physX, physY, physW, physH)
-    } else {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: {
-          width: display.size.width * display.scaleFactor,
-          height: display.size.height * display.scaleFactor
-        }
-      })
-      const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
-      lastScreenshot = source.thumbnail
-    }
-    console.log(`[capture] after screenshot +${Date.now() - t0}ms`)
+    logCapture('before screenshot', t0)
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: {
+        width: display.size.width * display.scaleFactor,
+        height: display.size.height * display.scaleFactor
+      }
+    })
+    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
+    lastScreenshot = source.thumbnail
+    lastScreenshotSize = source.thumbnail.getSize()
+    const size = lastScreenshotSize
+    logCapture(`after screenshot image=${size.width}x${size.height}`, t0)
     createOverlayWindow(display)
   } catch (err) {
     console.error('Capture failed:', err)
@@ -223,7 +293,7 @@ app.whenReady().then(() => {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Preferences',
-      click: () => createSettingsWindow()
+      click: () => createSettingsWindow('settings')
     },
     { type: 'separator' },
     {
@@ -268,10 +338,19 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('get-screenshot', () => {
-    return lastScreenshot?.toDataURL() ?? null
+    const startedAt = Date.now()
+    const dataURL = lastScreenshot?.toDataURL() ?? null
+    logCapture(
+      `get-screenshot toDataURL elapsed=${Date.now() - startedAt}ms bytes=${dataURL?.length ?? 0}`
+    )
+    return dataURL
   })
 
   ipcMain.handle('get-picked-color', () => lastPickedColor)
+
+  ipcMain.on('overlay-log', (_event, message: string) => {
+    logCapture(`[overlay] ${message}`)
+  })
 
   ipcMain.handle('save-png', async (_event, dataURL: string, fileNamePrefix: string) => {
     // 1. Pop the built-in save window from the operation system
@@ -300,25 +379,15 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('close-settings-window', () => {
-    settingsWindow?.close()
+    hideWindow(settingsWindow)
   })
 
   ipcMain.on('color-picked', (_event, hex: string) => {
-    console.log('Color pick: ', hex)
-    lastPickedColor = hex
-    overlayWindow?.close()
-
-    if (capturePurpose === 'palette') {
-      sendColorToSettings('palette-color-picked', hex)
-    }
-
-    if (capturePurpose === 'gradient') {
-      sendColorToSettings('gradient-color-picked', hex)
-    }
+    handlePickedColor(hex)
   })
 
   ipcMain.on('close-palette-window', () => {
-    settingsWindow?.close()
+    hideWindow(settingsWindow)
   })
 
   ipcMain.on('repick', () => {

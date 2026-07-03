@@ -23,6 +23,9 @@ nsis:
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   notarize: false
+  extraResources:
+    - from: resources/macos/snidge-sampler
+      to: macos/snidge-sampler
 dmg:
   artifactName: ${name}-${version}.${ext}
 linux:
