@@ -4,9 +4,14 @@ function App(): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const loupeCanvasRef = useRef<HTMLCanvasElement>(null)
   const pickedColorRef = useRef<string | null>(null)
+  const screenshotRequestedRef = useRef(false)
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
+    // React StrictMode re-runs this effect in dev, and each get-screenshot
+    // IPC costs ~700ms on 4K, so only request the screenshot once per load
+    if (screenshotRequestedRef.current) return
+    screenshotRequestedRef.current = true
     window.api.getScreenshot().then((dataURL) => {
       console.log('[overlay] received screenshot dataURL')
       window.api.logOverlay('received screenshot dataURL')
