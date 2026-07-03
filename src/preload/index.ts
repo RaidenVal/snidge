@@ -4,6 +4,7 @@ import type { IpcRendererEvent } from 'electron'
 
 type Unsubscribe = () => void
 type PickedColorChannel = 'palette-color-picked' | 'gradient-color-picked'
+type SettingsTab = 'palette' | 'gradient' | 'settings'
 
 function onPickedColor(channel: PickedColorChannel, callback: (hex: string) => void): Unsubscribe {
   const listener = (_event: IpcRendererEvent, hex: string): void => {
@@ -25,6 +26,18 @@ function onGradientColorPicked(callback: (hex: string) => void): Unsubscribe {
   return onPickedColor('gradient-color-picked', callback)
 }
 
+function onSettingsTabRequested(callback: (tab: SettingsTab) => void): Unsubscribe {
+  const listener = (_event: IpcRendererEvent, tab: SettingsTab): void => {
+    callback(tab)
+  }
+
+  ipcRenderer.on('settings-tab-requested', listener)
+
+  return function unsubscribe(): void {
+    ipcRenderer.removeListener('settings-tab-requested', listener)
+  }
+}
+
 // Custom APIs for renderer
 const api = {
   getHotkey: (): Promise<string> => ipcRenderer.invoke('get-hotkey'),
@@ -34,6 +47,7 @@ const api = {
     ipcRenderer.send('start-capture', purpose),
   onPaletteColorPicked,
   onGradientColorPicked,
+  onSettingsTabRequested,
   closeSettingsWindow: (): void => ipcRenderer.send('close-settings-window'),
   closePaletteWindow: (): void => ipcRenderer.send('close-palette-window'),
   pickColor: (hex: string): void => ipcRenderer.send('color-picked', hex),

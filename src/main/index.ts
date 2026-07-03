@@ -15,6 +15,15 @@ import trayIcon from '../../resources/tray-icon.png?asset'
 import store from './store'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
+import {
+  channelForCapturePurpose,
+  type CapturePurpose,
+  type PickedColorChannel
+} from './captureRouting'
+import { resolveMacSamplerPath, runMacSampler } from './macosSampler'
+import { hideWindow } from './windowActions'
+
+type SettingsTab = 'palette' | 'gradient' | 'settings'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
@@ -23,8 +32,6 @@ let lastScreenshot: NativeImage | null = null
 let lastScreenshotSize: { width: number; height: number } | null = null
 let lastPickedColor: string | null = null
 let activeCaptureStartedAt: number | null = null
-
-type CapturePurpose = 'palette' | 'gradient'
 let capturePurpose: CapturePurpose = 'palette'
 
 function logCapture(message: string, startedAt: number | null = activeCaptureStartedAt): void {
@@ -36,7 +43,20 @@ function logCapture(message: string, startedAt: number | null = activeCaptureSta
   console.log(`[capture] ${message} +${Date.now() - startedAt}ms`)
 }
 
-function createSettingsWindow(): void {
+function requestSettingsTab(tab: SettingsTab): void {
+  settingsWindow?.webContents.send('settings-tab-requested', tab)
+}
+
+function settingsWindowURL(tab?: SettingsTab): string {
+  const baseURL = `${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`
+  if (!tab) {
+    return baseURL
+  }
+
+  return `${baseURL}?tab=${encodeURIComponent(tab)}`
+}
+
+function createSettingsWindow(tab?: SettingsTab): void {
   // If settings window already exists, focus on it instead of
   // Opening a new one
   if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -44,6 +64,9 @@ function createSettingsWindow(): void {
       settingsWindow.show()
     }
     settingsWindow.focus()
+    if (tab) {
+      requestSettingsTab(tab)
+    }
     return
   }
 
@@ -69,10 +92,11 @@ function createSettingsWindow(): void {
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)
-    settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`)
+    settingsWindow.loadURL(settingsWindowURL(tab))
   } else {
     // When it is the production/live environment, load html file
-    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'))
+    const loadOptions = tab ? { query: { tab } } : undefined
+    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'), loadOptions)
   }
 
   // Clear the reference when the window is destroyed,
@@ -148,7 +172,17 @@ function createOverlayWindow(display: Display): void {
   })
 }
 
-function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-picked', hex: string): void {
+function showSettingsWindow(): void {
+  if (!settingsWindow || settingsWindow.isDestroyed()) {
+    createSettingsWindow()
+    return
+  }
+
+  settingsWindow.show()
+  settingsWindow.focus()
+}
+
+function sendColorToSettings(channel: PickedColorChannel, hex: string): void {
   const sendColor = (): void => {
     settingsWindow?.show()
     settingsWindow?.focus()
@@ -164,6 +198,42 @@ function sendColorToSettings(channel: 'palette-color-picked' | 'gradient-color-p
   sendColor()
 }
 
+function handlePickedColor(hex: string): void {
+  console.log('Color pick: ', hex)
+  lastPickedColor = hex
+  overlayWindow?.close()
+  sendColorToSettings(channelForCapturePurpose(capturePurpose), hex)
+}
+
+async function triggerMacSystemCapture(startedAt: number): Promise<void> {
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    logCapture('hiding window', startedAt)
+    settingsWindow.hide()
+  }
+
+  const helperPath = resolveMacSamplerPath({
+    isPackaged: app.isPackaged,
+    appPath: app.getAppPath(),
+    resourcesPath: process.resourcesPath
+  })
+
+  try {
+    logCapture(`before mac sampler path=${helperPath}`, startedAt)
+    const hex = await runMacSampler(helperPath)
+    if (!hex) {
+      logCapture('mac sampler canceled', startedAt)
+      showSettingsWindow()
+      return
+    }
+
+    logCapture(`mac sampler picked ${hex}`, startedAt)
+    handlePickedColor(hex)
+  } catch (err) {
+    console.error('macOS sampler failed:', err)
+    showSettingsWindow()
+  }
+}
+
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
   const t0 = Date.now()
   activeCaptureStartedAt = t0
@@ -171,6 +241,12 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
   capturePurpose = purpose
   lastScreenshot = null
   lastScreenshotSize = null
+
+  if (process.platform === 'darwin') {
+    await triggerMacSystemCapture(t0)
+    return
+  }
+
   if (settingsWindow && !settingsWindow.isDestroyed()) {
     logCapture('hiding window', t0)
     settingsWindow.hide()
@@ -217,7 +293,7 @@ app.whenReady().then(() => {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Preferences',
-      click: () => createSettingsWindow()
+      click: () => createSettingsWindow('settings')
     },
     { type: 'separator' },
     {
@@ -299,25 +375,15 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('close-settings-window', () => {
-    settingsWindow?.close()
+    hideWindow(settingsWindow)
   })
 
   ipcMain.on('color-picked', (_event, hex: string) => {
-    console.log('Color pick: ', hex)
-    lastPickedColor = hex
-    overlayWindow?.close()
-
-    if (capturePurpose === 'palette') {
-      sendColorToSettings('palette-color-picked', hex)
-    }
-
-    if (capturePurpose === 'gradient') {
-      sendColorToSettings('gradient-color-picked', hex)
-    }
+    handlePickedColor(hex)
   })
 
   ipcMain.on('close-palette-window', () => {
-    settingsWindow?.close()
+    hideWindow(settingsWindow)
   })
 
   ipcMain.on('repick', () => {
