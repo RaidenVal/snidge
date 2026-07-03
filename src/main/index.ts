@@ -21,6 +21,9 @@ import {
   type PickedColorChannel
 } from './captureRouting'
 import { resolveMacSamplerPath, runMacSampler } from './macosSampler'
+import { hideWindow } from './windowActions'
+
+type SettingsTab = 'palette' | 'gradient' | 'settings'
 
 let tray: Tray | null = null
 let settingsWindow: BrowserWindow | null = null
@@ -40,7 +43,20 @@ function logCapture(message: string, startedAt: number | null = activeCaptureSta
   console.log(`[capture] ${message} +${Date.now() - startedAt}ms`)
 }
 
-function createSettingsWindow(): void {
+function requestSettingsTab(tab: SettingsTab): void {
+  settingsWindow?.webContents.send('settings-tab-requested', tab)
+}
+
+function settingsWindowURL(tab?: SettingsTab): string {
+  const baseURL = `${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`
+  if (!tab) {
+    return baseURL
+  }
+
+  return `${baseURL}?tab=${encodeURIComponent(tab)}`
+}
+
+function createSettingsWindow(tab?: SettingsTab): void {
   // If settings window already exists, focus on it instead of
   // Opening a new one
   if (settingsWindow && !settingsWindow.isDestroyed()) {
@@ -48,6 +64,9 @@ function createSettingsWindow(): void {
       settingsWindow.show()
     }
     settingsWindow.focus()
+    if (tab) {
+      requestSettingsTab(tab)
+    }
     return
   }
 
@@ -73,10 +92,11 @@ function createSettingsWindow(): void {
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     // When it is the local/dev environment, load the url (localhost: xxxx)
-    settingsWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/settings/index.html`)
+    settingsWindow.loadURL(settingsWindowURL(tab))
   } else {
     // When it is the production/live environment, load html file
-    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'))
+    const loadOptions = tab ? { query: { tab } } : undefined
+    settingsWindow.loadFile(join(__dirname, '../renderer/settings/index.html'), loadOptions)
   }
 
   // Clear the reference when the window is destroyed,
@@ -273,7 +293,7 @@ app.whenReady().then(() => {
   const contextMenu = Menu.buildFromTemplate([
     {
       label: 'Preferences',
-      click: () => createSettingsWindow()
+      click: () => createSettingsWindow('settings')
     },
     { type: 'separator' },
     {
@@ -355,7 +375,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('close-settings-window', () => {
-    settingsWindow?.close()
+    hideWindow(settingsWindow)
   })
 
   ipcMain.on('color-picked', (_event, hex: string) => {
@@ -363,7 +383,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('close-palette-window', () => {
-    settingsWindow?.close()
+    hideWindow(settingsWindow)
   })
 
   ipcMain.on('repick', () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import TitleBar from '@shared/components/TitleBar'
 import navPalette from './assets/nav_palette.png'
 import navGradient from './assets/nav_gradient.png'
@@ -6,12 +6,20 @@ import navSettings from './assets/nav_settings.png'
 import PalettePage from './pages/PalettePage'
 import GradientPage from './pages/GradientPage'
 import SettingsPage from './pages/SettingsPage'
-
-// Restrict the tab names
-type ActiveTab = 'palette' | 'gradient' | 'settings'
+import { initialSettingsTabFromLocation, type ActiveTab, isSettingsTab } from './settingsTabs'
 
 function App(): React.JSX.Element {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('palette')
+  const [activeTab, setActiveTab] = useState<ActiveTab>(() =>
+    initialSettingsTabFromLocation(window.location)
+  )
+
+  useEffect(() => {
+    return window.api.onSettingsTabRequested((tab) => {
+      if (isSettingsTab(tab)) {
+        setActiveTab(tab)
+      }
+    })
+  }, [])
 
   const pageTitle =
     activeTab === 'palette'
