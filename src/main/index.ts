@@ -338,12 +338,15 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('get-screenshot', () => {
+    if (!lastScreenshot) return null
     const startedAt = Date.now()
-    const dataURL = lastScreenshot?.toDataURL() ?? null
+    // Raw BGRA pixels; a memcpy instead of the ~700ms 4K PNG encode
+    const buffer = lastScreenshot.toBitmap()
+    const size = lastScreenshotSize ?? lastScreenshot.getSize()
     logCapture(
-      `get-screenshot toDataURL elapsed=${Date.now() - startedAt}ms bytes=${dataURL?.length ?? 0}`
+      `get-screenshot toBitmap elapsed=${Date.now() - startedAt}ms bytes=${buffer.length}`
     )
-    return dataURL
+    return { buffer, width: size.width, height: size.height }
   })
 
   ipcMain.handle('get-picked-color', () => lastPickedColor)

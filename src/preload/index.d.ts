@@ -17,7 +17,11 @@ declare global {
       pickColor: (hex: string) => void
       repick: () => void
       getPickedColor: () => Promise<string | null>
-      getScreenshot: () => Promise<string | null>
+      getScreenshot: () => Promise<{
+        buffer: Uint8Array
+        width: number
+        height: number
+      } | null>
       logOverlay: (message: string) => void
       savePng: (
         dataURL: string,

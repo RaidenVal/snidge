@@ -5,6 +5,9 @@ import type { IpcRendererEvent } from 'electron'
 type Unsubscribe = () => void
 type PickedColorChannel = 'palette-color-picked' | 'gradient-color-picked'
 type SettingsTab = 'palette' | 'gradient' | 'settings'
+// Raw BGRA pixels from NativeImage.toBitmap(); Buffer arrives in the
+// renderer as a Uint8Array after IPC serialization
+type ScreenshotBitmap = { buffer: Uint8Array; width: number; height: number }
 
 function onPickedColor(channel: PickedColorChannel, callback: (hex: string) => void): Unsubscribe {
   const listener = (_event: IpcRendererEvent, hex: string): void => {
@@ -53,7 +56,7 @@ const api = {
   pickColor: (hex: string): void => ipcRenderer.send('color-picked', hex),
   repick: (): void => ipcRenderer.send('repick'),
   getPickedColor: (): Promise<string | null> => ipcRenderer.invoke('get-picked-color'),
-  getScreenshot: (): Promise<string | null> => ipcRenderer.invoke('get-screenshot'),
+  getScreenshot: (): Promise<ScreenshotBitmap | null> => ipcRenderer.invoke('get-screenshot'),
   logOverlay: (message: string): void => ipcRenderer.send('overlay-log', message),
   savePng: (
     dataURL: string,

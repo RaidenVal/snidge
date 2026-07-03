@@ -8,29 +8,56 @@ function App(): React.JSX.Element {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 
   useEffect(() => {
-    // React StrictMode re-runs this effect in dev, and each get-screenshot
-    // IPC costs ~700ms on 4K, so only request the screenshot once per load
+    // React StrictMode re-runs this effect in dev, and the screenshot
+    // transfer is heavy, so only request the screenshot once per load
     if (screenshotRequestedRef.current) return
     screenshotRequestedRef.current = true
-    window.api.getScreenshot().then((dataURL) => {
-      console.log('[overlay] received screenshot dataURL')
-      window.api.logOverlay('received screenshot dataURL')
-      if (!dataURL || !canvasRef.current) return
-      const img = new Image()
-      img.onload = () => {
-        const canvas = canvasRef.current
-        if (!canvas) return
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
+    window.api.getScreenshot().then((screenshot) => {
+      console.log('[overlay] received screenshot bitmap')
+      window.api.logOverlay('received screenshot bitmap')
+      if (!screenshot || !canvasRef.current) return
+      const canvas = canvasRef.current
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
 
-        canvas.width = window.innerWidth * window.devicePixelRatio
-        canvas.height = window.innerHeight * window.devicePixelRatio
+      canvas.width = window.innerWidth * window.devicePixelRatio
+      canvas.height = window.innerHeight * window.devicePixelRatio
 
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      const { buffer, width, height } = screenshot
+      if (buffer.length !== width * height * 4) {
+        window.api.logOverlay(
+          `unexpected bitmap length=${buffer.length} expected=${width * height * 4}`
+        )
+        return
+      }
+
+      // toBitmap() hands us BGRA bytes but ImageData wants RGBA, so swap
+      // red and blue; the capture is opaque so alpha is pinned to 255
+      const rgba = new Uint8ClampedArray(buffer.length)
+      for (let i = 0; i < buffer.length; i += 4) {
+        rgba[i] = buffer[i + 2]
+        rgba[i + 1] = buffer[i + 1]
+        rgba[i + 2] = buffer[i]
+        rgba[i + 3] = 255
+      }
+      const imageData = new ImageData(rgba, width, height)
+
+      const logDrawn = (): void => {
         console.log('[overlay] image drawn to canvas')
         window.api.logOverlay('image drawn to canvas')
       }
-      img.src = dataURL
+
+      if (width === canvas.width && height === canvas.height) {
+        // Exact pixel-for-pixel placement, same mapping the dpr math assumes
+        ctx.putImageData(imageData, 0, 0)
+        logDrawn()
+      } else {
+        // Sizes differ: scale to fill, matching the old drawImage behavior
+        createImageBitmap(imageData).then((bitmap) => {
+          ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+          logDrawn()
+        })
+      }
     })
   }, [])
 
