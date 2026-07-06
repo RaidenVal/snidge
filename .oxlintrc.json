@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "vitest", "import"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "vitest": true,
+    "es2024": true
+  },
+  "settings": {
+    "react": {
+      "version": "19.2.1"
+    }
+  },
+  "ignorePatterns": ["dist/**", "out/**"]
+}

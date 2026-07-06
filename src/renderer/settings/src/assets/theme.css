@@ -2,11 +2,11 @@
 
 :root {
   --coral: #f3776e;
-  --blush: #FEEFF1;
+  --blush: #feeff1;
   --white: #ffffff;
-  --text-dark: #86878A;
-  --coral-dark: #D85F58;
-  --error-red: #DC3545;
+  --text-dark: #86878a;
+  --coral-dark: #d85f58;
+  --error-red: #dc3545;
 }
 
 button,

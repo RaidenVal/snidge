@@ -3,7 +3,7 @@ import { blurFocusedElement } from './focus'
 
 describe('blurFocusedElement', () => {
   it('blurs the current focused element when it can be blurred', () => {
-    const blur = vi.fn()
+    const blur = vi.fn<() => void>()
 
     blurFocusedElement({ blur } as unknown as Element)
 

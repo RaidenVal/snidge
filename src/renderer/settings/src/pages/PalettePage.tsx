@@ -118,7 +118,13 @@ function PalettePage(): React.JSX.Element {
         </button>
       ) : (
         <div className="palette-result-left">
-          <svg ref={svgRef} className="palette-wheel" width={320} height={320} viewBox="0 0 320 320">
+          <svg
+            ref={svgRef}
+            className="palette-wheel"
+            width={320}
+            height={320}
+            viewBox="0 0 320 320"
+          >
             <circle cx={160} cy={160} r={150} fill="#ffffff" />
             {Array.from({ length: count }).map((_, i) => {
               const start = top + i * wedge
