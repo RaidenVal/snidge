@@ -343,9 +343,7 @@ app.whenReady().then(() => {
     // Raw BGRA pixels; a memcpy instead of the ~700ms 4K PNG encode
     const buffer = lastScreenshot.toBitmap()
     const size = lastScreenshotSize ?? lastScreenshot.getSize()
-    logCapture(
-      `get-screenshot toBitmap elapsed=${Date.now() - startedAt}ms bytes=${buffer.length}`
-    )
+    logCapture(`get-screenshot toBitmap elapsed=${Date.now() - startedAt}ms bytes=${buffer.length}`)
     return { buffer, width: size.width, height: size.height }
   })
 

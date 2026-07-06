@@ -23,7 +23,7 @@ no personal-data processing under GDPR.
 
 ## Recommended IDE Setup
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+- [VSCode](https://code.visualstudio.com/) + [Oxc](https://marketplace.visualstudio.com/items?itemName=oxc.oxc-vscode)
 
 ## Project Setup
 
@@ -37,6 +37,15 @@ $ npm install
 
 ```bash
 $ npm run dev
+```
+
+### Checks
+
+```bash
+$ npm run lint
+$ npm run format:check
+$ npm run typecheck
+$ npm test
 ```
 
 ### Build

@@ -5,7 +5,7 @@ describe('hideWindow', () => {
   it('hides an existing window', () => {
     const window = {
       isDestroyed: () => false,
-      hide: vi.fn()
+      hide: vi.fn<() => void>()
     }
 
     hideWindow(window)
@@ -16,7 +16,7 @@ describe('hideWindow', () => {
   it('does nothing when the window is missing or destroyed', () => {
     const destroyedWindow = {
       isDestroyed: () => true,
-      hide: vi.fn()
+      hide: vi.fn<() => void>()
     }
 
     expect(() => hideWindow(null)).not.toThrow()
