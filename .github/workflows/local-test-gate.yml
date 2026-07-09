@@ -1,0 +1,48 @@
+name: Local Test Gate
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  local-test-gate:
+    name: local-test-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove stale local-test label after new commits
+        if: ${{ github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'local-test-passed') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh api \
+            --method DELETE \
+            "repos/${REPOSITORY}/issues/${PR_NUMBER}/labels/local-test-passed"
+
+      - name: Require fresh local test after new commits
+        if: ${{ github.event.action == 'synchronize' }}
+        run: |
+          echo "::error::New commits were pushed. Re-add the local-test-passed label after local testing."
+          exit 1
+
+      - name: Require local-test-passed label
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'local-test-passed') }}
+        run: |
+          echo "::error::Add the local-test-passed label after local testing before merging."
+          exit 1
+
+      - name: Confirm local test gate
+        run: |
+          echo "local-test-passed label is present."
