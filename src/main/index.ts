@@ -234,34 +234,50 @@ async function triggerMacSystemCapture(startedAt: number): Promise<void> {
   }
 }
 
+async function hideSettingsWindowForCapture(captureStartedAt: number): Promise<void> {
+  const window = settingsWindow
+  if (!window || window.isDestroyed() || !window.isVisible()) {
+    return
+  }
+
+  logCapture('hiding window', captureStartedAt)
+
+  await new Promise<void>((resolve) => {
+    window.once('hide', () => resolve())
+    window.hide()
+  })
+
+  if (process.platform === 'win32') {
+    await new Promise<void>((resolve) => setTimeout(resolve, 32))
+  }
+
+  logCapture('after hide settle', captureStartedAt)
+}
+
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
-  const t0 = Date.now()
-  activeCaptureStartedAt = t0
-  logCapture(`start purpose=${purpose} platform=${process.platform}`, t0)
+  const captureStartedAt = Date.now()
+  activeCaptureStartedAt = captureStartedAt
+  logCapture(`start purpose=${purpose} platform=${process.platform}`, captureStartedAt)
   capturePurpose = purpose
   lastScreenshot = null
   lastScreenshotSize = null
 
   if (process.platform === 'darwin') {
-    await triggerMacSystemCapture(t0)
+    await triggerMacSystemCapture(captureStartedAt)
     return
   }
 
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    logCapture('hiding window', t0)
-    settingsWindow.hide()
-    await new Promise((r) => setTimeout(r, 100))
-    logCapture('after 100ms wait', t0)
-  }
+  await hideSettingsWindowForCapture(captureStartedAt)
+
   const point = screen.getCursorScreenPoint()
   const display = screen.getDisplayNearestPoint(point)
   logCapture(
     `display id=${display.id} bounds=${display.bounds.x},${display.bounds.y} ${display.bounds.width}x${display.bounds.height} size=${display.size.width}x${display.size.height} scale=${display.scaleFactor}`,
-    t0
+    captureStartedAt
   )
 
   try {
-    logCapture('before screenshot', t0)
+    logCapture('before screenshot', captureStartedAt)
     const sources = await desktopCapturer.getSources({
       types: ['screen'],
       thumbnailSize: {
@@ -273,7 +289,7 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
     lastScreenshot = source.thumbnail
     lastScreenshotSize = source.thumbnail.getSize()
     const size = lastScreenshotSize
-    logCapture(`after screenshot image=${size.width}x${size.height}`, t0)
+    logCapture(`after screenshot image=${size.width}x${size.height}`, captureStartedAt)
     createOverlayWindow(display)
   } catch (err) {
     console.error('Capture failed:', err)
