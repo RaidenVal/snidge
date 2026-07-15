@@ -8,3 +8,6 @@ resources/macos/snidge-sampler
 # Environment variables
 .env
 .env.*
+
+native/windows-capture-helper/target/
+resources/win/snidge-wgc-capture.exe
