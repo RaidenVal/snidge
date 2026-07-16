@@ -88,7 +88,7 @@ Node 侧传参前，rect 要用 `screen.dipToScreenRect(display.bounds)` 转成�
 - [x] **Step 2** `windowsCapture.ts`：路径解析 + 协议解析（纯函数+单测）+ 流式拼帧（单测）+ spawn/超时/fallback
 - [x] **Step 3.1** Rust 侧多显示器匹配 + DPI 感知修复
 - [x] **Step 3.2** `windowsCapture.ts` 把 rect + 鼠标坐标传给 spawn（`buildWindowsCaptureArgs`，commit `e180593`）
-- [ ] **Step 3.3** 接入 `src/main/index.ts` 的 `triggerCapture()` win32 分支：算物理 rect、调用 `runWindowsCapture`、把返回的 BGRA buffer 转成 `NativeImage`、失败则原样回退到现有 `desktopCapturer` 路径
+- [x] **Step 3.3** 接入 `src/main/index.ts` 的 `triggerCapture()` win32 分支：算物理 rect（`screen.dipToScreenRect(null, display.bounds)`，注意要传 window 参数）、鼠标坐标也要转物理像素（`screen.dipToScreenPoint`）、调用 `runWindowsCapture`、把返回的 BGRA buffer 转成 `NativeImage`（`nativeImage.createFromBitmap`）、`tryWindowsGraphicsCapture` 整体包 try/catch 确保任何失败都能干净回退到 `desktopCapturer`（commit `303ae76`）
 - [ ] **Step 4** 全流程手测：`npm run dev` 实测、多显示器、纯红 `#FF0000` 通道测试（验证 BGRA/RGBA 没搞反）、改名 exe 模拟崩溃测 fallback、确认耗时降到 ~100ms 级
 
 ### 协作方式（这个工作流专属，其他任务不一定适用）
