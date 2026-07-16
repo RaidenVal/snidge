@@ -3,7 +3,8 @@ import {
     WgcFrameAssembler,
     parseWgcHeader,
     readWgcHeaderLen,
-    resolveWindowsCaptureHelperPath
+    resolveWindowsCaptureHelperPath,
+    buildWindowsCaptureArgs
 } from './windowsCapture'
 
 function buildFakeHeader(): Buffer {
@@ -107,5 +108,25 @@ describe('WgcFrameAssembler', () => {
         assembler.push(frame.subarray(0, frame.length - 1))
 
         expect(assembler.isComplete()).toBe(false)
+    })
+})
+
+describe('buildWindowsCaptureArgs', () => {
+    it('converts rect + cursor into positional string args', () => {
+        expect(
+            buildWindowsCaptureArgs({
+                rect: { x: 0, y: 0, width: 3440, height: 1440 },
+                cursor: { x: 100, y: 200 }
+            })
+        ).toEqual(['0', '0', '3440', '1440', '100', '200'])
+    })
+
+    it('rounds fractional pixel values', () => {
+        expect(
+            buildWindowsCaptureArgs({
+                rect: { x: -1920.4, y: 0.6, width: 1920, height: 1080 },
+                cursor: { x: 100.5, y: 100.5 }
+            })
+        ).toEqual(['-1920', '1', '1920', '1080', '101', '101'])
     })
 })

@@ -6,6 +6,7 @@ const WGC_CAPTURE_TIMEOUT_MS = 2000 // 硬超时，防止 helper 卡死一直转
 // spawn helper、拼帧、超时/失败都 resolve null（让调用方走 fallback），不 reject
 export function runWindowsCapture(
     helperPath: string,
+    target: WindowsCaptureTarget,
     log: (message: string) => void = () => {}
 ): Promise<WindowsCaptureFrame | null> {
     return new Promise((resolve) => {
@@ -21,7 +22,7 @@ export function runWindowsCapture(
         }
 
         log('before spawn')
-        const child = spawn(helperPath, [], { stdio: ['ignore', 'pipe', 'pipe']})
+        const child = spawn(helperPath, buildWindowsCaptureArgs(target), { stdio: ['ignore', 'pipe', 'pipe']})
 
         const timeoutHandle = setTimeout(() => {
             log('time out, killing helper')
@@ -200,4 +201,20 @@ export class WgcFrameAssembler {
 
         return { header: this.header, payload: this.payload }
     }
+}
+
+export type WindowsCaptureTarget = {
+    rect: { x: number; y: number; width: number; height: number }
+    cursor: { x: number; y: number }
+}
+
+export function buildWindowsCaptureArgs(target: WindowsCaptureTarget): string[] {
+    return [
+        target.rect.x,
+        target.rect.y,
+        target.rect.width,
+        target.rect.height,
+        target.cursor.x,
+        target.cursor.y
+    ].map((value) => String(Math.round(value)))
 }
