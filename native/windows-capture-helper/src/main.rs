@@ -28,17 +28,17 @@ const FORMAT_BGRAB: u32 = 1;
 fn main() -> std::process::ExitCode {
     // 声明这个进程能处理 DPI 缩放，不然 GetMonitorInfoW 这类老 API 会返回缩放后的虚拟坐标，跟真实物理像素对不上
     if let Err(err) = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) } {
-        eprintln!("[wgc] failed to set DPI awareness: {err}");
+        eprintln!("failed to set DPI awareness: {err}");
     }
 
     match GraphicsCaptureApi::is_supported() {
         Ok(true) => {}
         Ok(false) => {
-            eprintln!("[wgc] Windows Graphics Capture is not supported on this system");
+            eprintln!("Windows Graphics Capture is not supported on this system");
             return std::process::ExitCode::FAILURE;
         }
         Err(err) => {
-            eprintln!("[wgc] failed to check Graphics Capture support: {err}");
+            eprintln!("failed to check Graphics Capture support: {err}");
             return std::process::ExitCode::FAILURE;
         }
     }
@@ -48,12 +48,12 @@ fn main() -> std::process::ExitCode {
     let monitor = match select_monitor(target.as_ref()) {
         Ok(monitor) => monitor,
         Err(err) => {
-            eprintln!("[wgc] {err}");
+            eprintln!("{err}");
             return std::process::ExitCode::FAILURE;
         }
     };
 
-    eprintln!("[wgc] selected monitor: {monitor:?}");
+    eprintln!("selected monitor: {monitor:?}");
 
     let settings = Settings::new(
         monitor,
@@ -67,7 +67,7 @@ fn main() -> std::process::ExitCode {
     );
 
     if let Err(err) = SingleFrameCapture::start(settings) {
-        eprintln!("[wgc] capture failed: {err}");
+        eprintln!("capture failed: {err}");
         return std::process::ExitCode::FAILURE;
     }
 
@@ -190,7 +190,7 @@ fn select_monitor(target: Option<&TargetRect>) -> Result<Monitor, String> {
             }
         }
 
-        eprintln!("[wgc] no monitor matched target rect, falling back to cursor position");
+        eprintln!("no monitor matched target rect, falling back to cursor position");
 
         // 第二层：rect 没匹配上，改用鼠标当前物理坐标去问系统"这在哪个屏幕上"
         let point = POINT { x: target.cursor_x, y: target.cursor_y };
@@ -199,7 +199,7 @@ fn select_monitor(target: Option<&TargetRect>) -> Result<Monitor, String> {
             return Ok(Monitor::from_raw_hmonitor(hmonitor.0));
         }
 
-        eprintln!("[wgc] MonitorFromPoint also failed, falling back to first enumerated monitor");
+        eprintln!("MonitorFromPoint also failed, falling back to first enumerated monitor");
     }
     // 第三层：什么都没传，或者前两层都失败，随便选第一个屏幕
     monitors.into_iter().next().ok_or_else(|| "no monitors found".to_string())
