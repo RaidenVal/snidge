@@ -89,6 +89,13 @@ Node 侧传参前，rect 要用 `screen.dipToScreenRect(display.bounds)` 转成�
 - [x] **Step 3.1** Rust 侧多显示器匹配 + DPI 感知修复
 - [x] **Step 3.2** `windowsCapture.ts` 把 rect + 鼠标坐标传给 spawn（`buildWindowsCaptureArgs`，commit `e180593`）
 - [x] **Step 3.3** 接入 `src/main/index.ts` 的 `triggerCapture()` win32 分支：算物理 rect（`screen.dipToScreenRect(null, display.bounds)`，注意要传 window 参数）、鼠标坐标也要转物理像素（`screen.dipToScreenPoint`）、调用 `runWindowsCapture`、把返回的 BGRA buffer 转成 `NativeImage`（`nativeImage.createFromBitmap`）、`tryWindowsGraphicsCapture` 整体包 try/catch 确保任何失败都能干净回退到 `desktopCapturer`（commit `303ae76`）
+
+**注意：Step 4 手测尚未做完就已经合并进 main**（用户明确决定：单人项目，先合并，测试之后慢慢补。不代表功能已完全验证过，回头看这份文档时留意这一点）。
+
+- [x] 已验证：`npm run dev` 端到端跑通，overlay 正常、取色正常、fallback 未触发（WGC 路径一直成功）；耗时约 300-450ms（比 `desktopCapturer` 的 500-780ms 快，但没到 ~100ms 目标——大头卡在每次 spawn 新进程 + WGC session 冷启动，若要进一步压缩耗时需要常驻 helper 之类的更大架构改动，不在这次范围内）；黄色边框确认会闪一下（`Default` 设置下的预期行为）
+- [ ] 待手测：纯红 `#FF0000` 通道测试（验证 BGRA/RGBA 没搞反——这个最关键，`nativeImage.createFromBitmap` 的像素格式没有官方文档确认，是根据现有代码里 `toBitmap()` 注释"Raw BGRA pixels"反推出来的，需要实测验证）
+- [ ] 待手测：多显示器（副屏 rect 匹配是否准确）
+- [ ] 待手测：改名 exe 模拟崩溃，确认 fallback 到 `desktopCapturer` 的路径完整可用
 - [ ] **Step 4** 全流程手测：`npm run dev` 实测、多显示器、纯红 `#FF0000` 通道测试（验证 BGRA/RGBA 没搞反）、改名 exe 模拟崩溃测 fallback、确认耗时降到 ~100ms 级
 
 ### 协作方式（这个工作流专属，其他任务不一定适用）
