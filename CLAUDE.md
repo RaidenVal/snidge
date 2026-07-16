@@ -26,6 +26,8 @@ Windows 端 `desktopCapturer.getSources()` 本身很慢（3440x1440 上 ~500ms�
 
 本次任务：用 `Windows.Graphics.Capture`（WGC）写一个独立 Rust exe 做截图，绕开 `desktopCapturer`，目标把截图耗时降到 ~100ms 级。`desktopCapturer` 保留作 fallback（helper 不可用/崩溃/超时/旧 Windows 时自动回退），**功能不允许因为这条新路径而回退**。
 
+工作分支：`feature/windows-wgc-capture`（从 main 干净分出来，只含这个 feature；一开始误接在 `win-capture-hide-event-settle` 上，发现后拆开了，见下方"已踩坑"）。
+
 ### 架构
 
 和 macOS 的 `NSColorSampler` helper 对称：
@@ -78,13 +80,14 @@ Node 侧传参前，rect 要用 `screen.dipToScreenRect(display.bounds)` 转成�
 - **黄色捕获边框**：`DrawBorderSettings::WithoutBorder` 在实测机器上直接报错（`BorderConfigUnsupported`），已改用 `Default`——边框会闪一下，产品上接受这个结果，不为了关边框引入 packaged manifest 复杂度。
 - **HDR 屏色彩偏差**：第一版固定用 `ColorFormat::Bgra8`，色彩偏差问题记 TODO，不在本任务处理。
 - **helper 的两个硬性要求**：spawn 加 2 秒硬超时（超时 kill 进程 + fallback）；helper stderr 全部转发进 `[capture]` 日志流并加 `[wgc]` 前缀。均已在 `runWindowsCapture` 里实现。
+- **已踩坑：本地 `main` 曾经和 `origin/main` 分叉**（历史被重写过，本地是旧的、缺 Oxc 迁移和 hide-event-settle 那次 PR #16 合并）。新开分支前一定要 `git fetch` 并确认本地 main 和 `origin/main` 一致，不要凭本地分支名字/状态想当然。这次是从错误的本地 `main` 分出 `feature/windows-wgc-capture` 后才发现 `npm run lint` 报 `eslint not found`（应该是 `oxlint`），才顺藤摸瓜查出来，靠 rebase 到正确的 `origin/main` 修复的。
 
 ### 进度（按小步计划）
 
-- [x] **Step 1** Rust helper skeleton：能编译、能截一帧主屏、stdout 输出合法协议（commit `2dac5fc`）
-- [x] **Step 2** `windowsCapture.ts`：路径解析 + 协议解析（纯函数+单测）+ 流式拼帧（单测）+ spawn/超时/fallback（commit `9bbf7d7`）
-- [x] **Step 3.1** Rust 侧多显示器匹配 + DPI 感知修复（commit `582c935`）
-- [ ] **Step 3.2** `windowsCapture.ts` 把 rect + 鼠标坐标传给 spawn（`buildWindowsCaptureArgs`，进行中）
+- [x] **Step 1** Rust helper skeleton：能编译、能截一帧主屏、stdout 输出合法协议
+- [x] **Step 2** `windowsCapture.ts`：路径解析 + 协议解析（纯函数+单测）+ 流式拼帧（单测）+ spawn/超时/fallback
+- [x] **Step 3.1** Rust 侧多显示器匹配 + DPI 感知修复
+- [x] **Step 3.2** `windowsCapture.ts` 把 rect + 鼠标坐标传给 spawn（`buildWindowsCaptureArgs`，commit `e180593`）
 - [ ] **Step 3.3** 接入 `src/main/index.ts` 的 `triggerCapture()` win32 分支：算物理 rect、调用 `runWindowsCapture`、把返回的 BGRA buffer 转成 `NativeImage`、失败则原样回退到现有 `desktopCapturer` 路径
 - [ ] **Step 4** 全流程手测：`npm run dev` 实测、多显示器、纯红 `#FF0000` 通道测试（验证 BGRA/RGBA 没搞反）、改名 exe 模拟崩溃测 fallback、确认耗时降到 ~100ms 级
 
