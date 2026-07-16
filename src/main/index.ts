@@ -13,6 +13,7 @@ import {
 import type { Display, NativeImage } from 'electron'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import trayIcon from '../../resources/tray-icon.png?asset'
+import appIcon from '../../resources/icon.png?asset'
 import store from './store'
 import { join } from 'path'
 import { writeFile } from 'fs/promises'
@@ -79,6 +80,7 @@ function createSettingsWindow(tab?: SettingsTab): void {
     width: 860,
     height: 500,
     title: 'Snidge',
+    icon: appIcon,
     resizable: false,
     minimizable: false,
     maximizable: false,
