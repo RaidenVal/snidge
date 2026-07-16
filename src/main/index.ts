@@ -6,6 +6,7 @@ import {
   Tray,
   globalShortcut,
   desktopCapturer,
+  nativeImage,
   screen,
   dialog
 } from 'electron'
@@ -22,6 +23,7 @@ import {
 } from './captureRouting'
 import { resolveMacSamplerPath, runMacSampler } from './macosSampler'
 import { hideWindow } from './windowActions'
+import { resolveWindowsCaptureHelperPath, runWindowsCapture } from './windowsCapture'
 
 type SettingsTab = 'palette' | 'gradient' | 'settings'
 
@@ -254,6 +256,39 @@ async function hideSettingsWindowForCapture(captureStartedAt: number): Promise<v
   logCapture('after hide settle', captureStartedAt)
 }
 
+async function tryWindowsGraphicsCapture(display: Display, captureStartedAt: number): Promise<boolean> {
+  try {
+    const helperPath = resolveWindowsCaptureHelperPath({
+      isPackaged: app.isPackaged,
+      appPath: app.getAppPath(),
+      resourcesPath: process.resourcesPath
+    })
+
+    const rect = screen.dipToScreenRect(null, display.bounds)
+    const cursor = screen.dipToScreenPoint(screen.getCursorScreenPoint())
+
+    const frame = await runWindowsCapture(helperPath, { rect, cursor }, (message) => 
+      logCapture(message, captureStartedAt)
+    )
+
+    if (!frame) {
+      return false
+    }
+
+    lastScreenshot = nativeImage.createFromBitmap(frame.payload, {
+      width: frame.header.width,
+      height: frame.header.height
+    })
+    lastScreenshotSize = { width: frame.header.width, height: frame.header.height }
+    logCapture(`after wgc screenshot image=${frame.header.width}x${frame.header.height}`, captureStartedAt)
+
+    return true
+  } catch (err) {
+    logCapture(`wgc capture threw: ${err}`, captureStartedAt)
+    return false
+  }
+}
+
 async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void> {
   const captureStartedAt = Date.now()
   activeCaptureStartedAt = captureStartedAt
@@ -277,19 +312,24 @@ async function triggerCapture(purpose: CapturePurpose = 'palette'): Promise<void
   )
 
   try {
-    logCapture('before screenshot', captureStartedAt)
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: {
-        width: display.size.width * display.scaleFactor,
-        height: display.size.height * display.scaleFactor
-      }
-    })
-    const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
-    lastScreenshot = source.thumbnail
-    lastScreenshotSize = source.thumbnail.getSize()
-    const size = lastScreenshotSize
-    logCapture(`after screenshot image=${size.width}x${size.height}`, captureStartedAt)
+    const wgcSucceed = await tryWindowsGraphicsCapture(display, captureStartedAt)
+
+    if (!wgcSucceed) {
+      logCapture('before screenshot', captureStartedAt)
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: {
+          width: display.size.width * display.scaleFactor,
+          height: display.size.height * display.scaleFactor
+        }
+      })
+      const source = sources.find((s) => s.display_id === String(display.id)) ?? sources[0]
+      lastScreenshot = source.thumbnail
+      lastScreenshotSize = source.thumbnail.getSize()
+      const size = lastScreenshotSize
+      logCapture(`after screenshot image=${size.width}x${size.height}`, captureStartedAt)
+    }
+
     createOverlayWindow(display)
   } catch (err) {
     console.error('Capture failed:', err)
