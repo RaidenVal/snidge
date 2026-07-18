@@ -11,3 +11,6 @@ resources/macos/snidge-sampler
 
 native/windows-capture-helper/target/
 resources/win/snidge-wgc-capture.exe
+
+# Personal working notes, not for the public repo
+CLAUDE.md
