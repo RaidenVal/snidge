@@ -17,6 +17,10 @@ export class WindowsCaptureSession {
   private child: ChildProcessWithoutNullStreams | null = null
   private pending: PendingRequest | null = null
   private expectingExit = false
+  // stderr/error/close 事件是绑在进程上、只在 spawn 时注册一次的，但我们希望日志始终打到"当前这次取色"的
+  // 时间戳上，不是当年 spawn 那次的时间戳——所以每次 capture() 调用都把这个引用刷新成最新的 log 函数，
+  // 事件回调里读的是这个字段（调用时的最新值），不是闭包捕获的旧值。
+  private currentLog: (message: string) => void = () => {}
 
   constructor(private readonly helperPath: string) {}
 
@@ -24,6 +28,8 @@ export class WindowsCaptureSession {
     target: WindowsCaptureTarget,
     log: (message: string) => void = () => {}
   ): Promise<WindowsCaptureFrame | null> {
+    this.currentLog = log
+
     if (this.pending) {
       log('capture() called while a request is already in flight, ignoring')
       return Promise.resolve(null)
@@ -32,7 +38,7 @@ export class WindowsCaptureSession {
     return new Promise((resolve) => {
       let child: ChildProcessWithoutNullStreams
       try {
-        child = this.ensureChild(log)
+        child = this.ensureChild()
       } catch (err) {
         log(`failed to spawn helper: ${err}`)
         resolve(null)
@@ -75,12 +81,12 @@ export class WindowsCaptureSession {
     child.once('close', () => clearTimeout(forceKillHandle))
   }
 
-  private ensureChild(log: (message: string) => void): ChildProcessWithoutNullStreams {
+  private ensureChild(): ChildProcessWithoutNullStreams {
     if (this.child) {
       return this.child
     }
 
-    log('spawning persistent helper')
+    this.currentLog('spawning persistent helper')
     const child = spawn(this.helperPath, [], { stdio: ['pipe', 'pipe', 'pipe'] })
     this.child = child
     this.expectingExit = false
@@ -89,7 +95,7 @@ export class WindowsCaptureSession {
     child.stderr.on('data', (chunk: string) => {
       for (const trimmed of chunk.split('\n').map((line) => line.trim())) {
         if (trimmed) {
-          log(`[wgc] ${trimmed}`)
+          this.currentLog(`[wgc] ${trimmed}`)
         }
       }
     })
@@ -107,13 +113,13 @@ export class WindowsCaptureSession {
     })
 
     child.once('error', (err) => {
-      log(`helper process error: ${err.message}`)
+      this.currentLog(`helper process error: ${err.message}`)
       this.handleChildGone()
     })
 
     child.once('close', (code) => {
       if (!this.expectingExit) {
-        log(`helper exited unexpectedly with code=${code}`)
+        this.currentLog(`helper exited unexpectedly with code=${code}`)
       }
       this.handleChildGone()
     })
