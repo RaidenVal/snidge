@@ -49,6 +49,7 @@ export class WindowsCaptureSession {
       this.pending = { assembler: new WgcFrameAssembler(), resolve, timeoutHandle }
 
       const line = buildWindowsCaptureRequestLine(target)
+      log('[timing] writing request to stdin')
       child.stdin.write(`${line}\n`, (err) => {
         if (err) {
           log(`failed to write request: ${err.message}`)
