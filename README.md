@@ -6,6 +6,19 @@ Press a hotkey to freeze the screen, sample any pixel with a magnifier loupe,
 and get a radial palette of tint/shade variants in HEX / RGB / HSL — then export
 it as a PNG. Built with Electron, React and TypeScript.
 
+## How to use
+
+1. Press the shortcut (default `Ctrl+Alt+J`, changeable in Settings) from
+   anywhere on your desktop.
+2. Your screen freezes; click the exact pixel you want to sample.
+3. Choose **Palette** mode to turn that one colour into a radial set of
+   tint/shade variants, or **Gradient** mode to sample a second colour and
+   blend between the two.
+4. Click any swatch to see its HEX, RGB and CMYK values — one click copies
+   any of them to your clipboard.
+5. Not happy with the result? **Repick** samples again; **Cancel** starts
+   over. **Save** exports the whole palette or gradient as a PNG.
+
 ## Privacy
 
 Snidge runs entirely on your device. It makes no internet connections, sends no
