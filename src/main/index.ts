@@ -172,6 +172,7 @@ function createOverlayWindow(display: Display): void {
   overlayWindow.webContents.on('before-input-event', (_event, input) => {
     if (input.type === 'keyDown' && input.key === 'Escape') {
       overlayWindow?.close()
+      showSettingsWindow()
     }
   })
 }
