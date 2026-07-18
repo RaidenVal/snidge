@@ -171,14 +171,18 @@ impl Drop for WinRtGuard {
     }
 }
 
-struct SingleFrameCapture;
+// 一个刚建好的截图会话，第一帧有时候给的是系统缓存的旧画面，不是建会话那一刻的实时画面
+// （这是 Windows.Graphics.Capture 一个有据可查的老毛病）。跳过第一帧、用第二帧能避开这个问题。
+struct SingleFrameCapture {
+    frames_seen: u32,
+}
 
 impl GraphicsCaptureApiHandler for SingleFrameCapture {
     type Flags = ();
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn new(_ctx: Context<Self::Flags>) -> Result<Self, Self::Error> {
-        Ok(Self)
+        Ok(Self { frames_seen: 0 })
     }
 
     fn on_frame_arrived(
@@ -186,6 +190,11 @@ impl GraphicsCaptureApiHandler for SingleFrameCapture {
         frame: &mut Frame,
         capture_control: InternalCaptureControl,
     ) -> Result<(), Self::Error> {
+        self.frames_seen += 1;
+        if self.frames_seen < 2 {
+            return Ok(());
+        }
+
         let frame_buffer = frame.buffer()?;
         let width = frame_buffer.width();
         let height = frame_buffer.height();
