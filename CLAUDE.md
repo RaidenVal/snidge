@@ -93,10 +93,44 @@ Node 侧传参前，rect 要用 `screen.dipToScreenRect(display.bounds)` 转成�
 **注意：Step 4 手测尚未做完就已经合并进 main**（用户明确决定：单人项目，先合并，测试之后慢慢补。不代表功能已完全验证过，回头看这份文档时留意这一点）。
 
 - [x] 已验证：`npm run dev` 端到端跑通，overlay 正常、取色正常、fallback 未触发（WGC 路径一直成功）；耗时约 300-450ms（比 `desktopCapturer` 的 500-780ms 快，但没到 ~100ms 目标——大头卡在每次 spawn 新进程 + WGC session 冷启动，若要进一步压缩耗时需要常驻 helper 之类的更大架构改动，不在这次范围内）；黄色边框确认会闪一下（`Default` 设置下的预期行为）
-- [ ] 待手测：纯红 `#FF0000` 通道测试（验证 BGRA/RGBA 没搞反——这个最关键，`nativeImage.createFromBitmap` 的像素格式没有官方文档确认，是根据现有代码里 `toBitmap()` 注释"Raw BGRA pixels"反推出来的，需要实测验证）
-- [ ] 待手测：多显示器（副屏 rect 匹配是否准确）
-- [ ] 待手测：改名 exe 模拟崩溃，确认 fallback 到 `desktopCapturer` 的路径完整可用
-- [ ] **Step 4** 全流程手测：`npm run dev` 实测、多显示器、纯红 `#FF0000` 通道测试（验证 BGRA/RGBA 没搞反）、改名 exe 模拟崩溃测 fallback、确认耗时降到 ~100ms 级
+- [x] 已验证：纯红 `#FF0000` 通道测试（BGRA/RGBA 没搞反，`nativeImage.createFromBitmap` 按 BGRA 解析是对的）
+- [ ] 待手测：多显示器（副屏 rect 匹配是否准确）——用户当前没有多屏测试条件，暂不测，影响判断为低优先级
+- [x] 已验证：改名 exe 模拟崩溃，fallback 到 `desktopCapturer` 的路径完整可用，exe 改回来后下次取色能自动重新拉起
+- [x] **Step 4** 全流程手测（多显示器除外，见上）
+
+---
+
+## 常驻 helper 优化（在上面 WGC 功能已合并 main 的基础上）
+
+### 背景
+
+Step 4 手测验证 WGC 端到端可用之后，实测耗时约 300-450ms，没到 ~100ms 目标。用加了临时计时日志的诊断分支（`debug/wgc-timing-and-fixes`，已删除，两个顺手修的 bug 走 PR #19 合并了）拆解耗时，发现单是"建 D3D 设备"这一步，在一台 4K 显示器机器上稳定花费 ~500ms（三次实测 491-503ms，波动 <3%），占总耗时近 80%，且**完全不会因为同一次 `npm run dev` 里连续截图而变快**——因为每次取色都是重新 spawn 一个全新进程、从零建一个全新 D3D 设备。
+
+结论：真正的瓶颈不是"截图会话"或"等画面"，是"建显卡设备"这一步，且是进程级、不缓存的固定成本。治本办法：让 helper 进程常驻、D3D 设备只建一次、后续取色复用同一个设备。
+
+### 这次工作方式的例外
+
+用户明确说"这次你来做，我帮你测试，你来操刀"——跟本文档"协作方式"那节描述的"新手结对编程、Claude 只解释不动手"不一样，是针对这一个优化任务的例外，其余 Rust/native 工作默认还是按结对编程来。
+
+### 架构改动
+
+- **Rust 侧**（`native/windows-capture-helper/src/main.rs`）：从"一次性进程，跑完一帧就退出"改成"常驻进程"——`WinRT` 初始化、dispatcher queue、D3D 设备只在 `main()` 顶部建一次，之后在一个循环里反复从 stdin 读一行请求（格式不变，还是 `x y width height cursorX cursorY`，只是从 argv 搬到了 stdin，一行一个请求）、截一帧、按原来的二进制协议写回 stdout，直到 stdin 关闭（app 退出时）才退出。不能再用 crate 自带的 `GraphicsCaptureApiHandler::start()`（它会自己重新建一次设备），改成直接调 crate 暴露的底层公开函数（`create_d3d_device()`、`GraphicsCaptureApi::new()`、`stop_capture()`）自己攒了一个更小的循环，`WinRT` 初始化那部分 crate 里是私有的，抄了一份等价实现。用到的额外 crate：`parking_lot`（跟 `windows-capture` 内部用的 `Mutex<T>` 类型对齐，版本让 Cargo 自动解析到跟内部一致的 0.12.5）。
+- **Node 侧**（`src/main/windowsCapture.ts` + `src/main/index.ts`）：新增 `WindowsCaptureSession` 类替代原来一次性的 `runWindowsCapture()` 函数，管理常驻进程的生命周期——懒加载 spawn（第一次取色才拉起）、写请求到 stdin、等一帧、超时（2 秒）/崩溃自动清理状态、下次 `capture()` 调用自动重新拉起。`app.on('will-quit', ...)` 里调用 `wgcSession.dispose()`，关 stdin 让 helper 看到 EOF 自己退出，超时强杀兜底，避免孤儿进程。
+
+### 踩过的坑
+
+- **stderr 日志错误路由到旧的 `log` 闭包**：`ensureChild()` 只在真正 spawn 新进程时才会执行，`child.stderr.on('data', ...)` 只在那一刻绑定一次；但这个绑定捕获的是当时那次 `capture()` 调用传进来的 `log` 函数（带着那次调用的 `captureStartedAt` 时间戳）。第二次及以后的 `capture()` 调用里 `ensureChild()` 直接复用已有进程、不会重新绑定，导致所有后续的 stderr 日志永远显示"距离第一次取色过了多久"，报出过 51524ms 这种吓人数字（其实只是两次取色之间用户操作间隔了 51 秒，跟性能无关）。修法：把"当前该用哪个 log 函数"存成一个每次 `capture()` 调用都会刷新的字段（`currentLog`），事件回调里读这个字段的最新值，不读闭包捕获的旧值。
+- **陈旧帧（stale frame）**：常驰后 D3D 设备被反复复用来开新的截图会话，实测发现从第二次取色开始，**每次必现**——取色画面里会带着上一次设置窗口还没隐藏时的旧内容，只跳过第一帧不够解决。最终方案：`SingleFrameCapture::on_frame_arrived` 里改成按时间跳而不是按帧数跳——会话建好后头 150ms 内到的帧一律丢弃，只用 150ms 之后第一个到的帧（`STALE_FRAME_FLUSH_WINDOW`）。这个策略解决了问题，但 150ms 是拍的一个偏保守的数字，没有针对"最小需要多久"做过细调；单次取色耗时因此从"设备复用后 ~60-120ms"涨到"~200-230ms"，仍然远快于最初的 300-450ms，只是没打平"跳过陈旧帧"这个新成本之前测出的乐观数字。**没有查清楚陈旧帧的根本机制**（怀疑是同一个 D3D 设备上连续开关截图会话导致 GPU 纹理复用/没冲刷干净，但没有实锤），只是找到了一个实测有效的规避办法，回头如果要把 150ms 往下调，得重新理解这个机制而不是瞎调数字。
+
+### 当前状态（2026-07-18）
+
+- [x] 常驻进程 + D3D 设备复用架构实现完成，分支 `feature/wgc-persistent-helper`（未合并 main、未开 PR）
+- [x] 陈旧帧 bug 定位 + 修复（150ms 时间窗）
+- [x] 用户主力机（非 LG 那台）上手测：颜色正确、耗时稳定在 ~217-232ms、改名 exe 模拟崩溃 fallback 正常、app 退出后 helper 进程无孤儿残留
+- [ ] 多显示器手测（当前没有测试条件，暂缓）
+- [ ] LG 电脑回归测（之前在这台机器上单独测出过"建 D3D 设备"耗时 ~500ms、以及这次改动前的旧版本代码问题，值得单独确认新架构在这台机器上表现——尤其是 150ms 冲刷窗口是否同样够用）
+- [ ] 150ms 冲刷窗口是否可以调小，需要先搞清楚陈旧帧的根本机制再调，不是这次任务的必须项
+- [ ] 分支尚未合并 main，等用户明确同意
 
 ### 协作方式（这个工作流专属，其他任务不一定适用）
 
