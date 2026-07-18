@@ -14,6 +14,7 @@ asarUnpack:
 win:
   executableName: snidge
   target:
+    - appx
     - nsis
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
