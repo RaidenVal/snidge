@@ -1,5 +1,7 @@
 import { spawn } from 'child_process'
-import { join } from 'path'
+import { posix } from 'path'
+
+const { join } = posix
 
 export type MacSamplerPathOptions = {
   isPackaged: boolean
