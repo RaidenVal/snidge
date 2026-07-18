@@ -104,6 +104,8 @@ fn main() -> std::process::ExitCode {
             }
         };
 
+        eprintln!("[timing] read request line, elapsed since process start={:?}", process_started_at.elapsed());
+
         let target = match parse_target_line(&line) {
             Ok(target) => target,
             Err(()) => {
