@@ -171,10 +171,14 @@ impl Drop for WinRtGuard {
     }
 }
 
-// 一个刚建好的截图会话，第一帧有时候给的是系统缓存的旧画面，不是建会话那一刻的实时画面
-// （这是 Windows.Graphics.Capture 一个有据可查的老毛病）。跳过第一帧、用第二帧能避开这个问题。
+// 常驻进程里同一个 D3D 设备上连续开很多次截图会话，实测发现跳过 1 帧还不够——第二次开始的
+// 每次截图画面里都还带着旧内容（应该是设备复用导致新会话头几帧拿到的是没冲刷干净的旧纹理）。
+// 改成按时间跳而不是按帧数跳：会话建好后的头 150ms 内到的帧一律丢弃，只用 150ms 之后第一个到的帧。
+// 这样不管这台机器屏幕刷新率是多少，冲刷时间都够。150ms 是拍的一个相对宽松的数字，有需要可以再调。
+const STALE_FRAME_FLUSH_WINDOW: std::time::Duration = std::time::Duration::from_millis(150);
+
 struct SingleFrameCapture {
-    frames_seen: u32,
+    session_started_at: Instant,
 }
 
 impl GraphicsCaptureApiHandler for SingleFrameCapture {
@@ -182,7 +186,7 @@ impl GraphicsCaptureApiHandler for SingleFrameCapture {
     type Error = Box<dyn std::error::Error + Send + Sync>;
 
     fn new(_ctx: Context<Self::Flags>) -> Result<Self, Self::Error> {
-        Ok(Self { frames_seen: 0 })
+        Ok(Self { session_started_at: Instant::now() })
     }
 
     fn on_frame_arrived(
@@ -190,8 +194,7 @@ impl GraphicsCaptureApiHandler for SingleFrameCapture {
         frame: &mut Frame,
         capture_control: InternalCaptureControl,
     ) -> Result<(), Self::Error> {
-        self.frames_seen += 1;
-        if self.frames_seen < 2 {
+        if self.session_started_at.elapsed() < STALE_FRAME_FLUSH_WINDOW {
             return Ok(());
         }
 
