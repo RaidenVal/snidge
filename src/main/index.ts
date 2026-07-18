@@ -24,7 +24,7 @@ import {
 } from './captureRouting'
 import { resolveMacSamplerPath, runMacSampler } from './macosSampler'
 import { hideWindow } from './windowActions'
-import { resolveWindowsCaptureHelperPath, runWindowsCapture } from './windowsCapture'
+import { resolveWindowsCaptureHelperPath, WindowsCaptureSession } from './windowsCapture'
 
 type SettingsTab = 'palette' | 'gradient' | 'settings'
 
@@ -36,6 +36,7 @@ let lastScreenshotSize: { width: number; height: number } | null = null
 let lastPickedColor: string | null = null
 let activeCaptureStartedAt: number | null = null
 let capturePurpose: CapturePurpose = 'palette'
+let wgcSession: WindowsCaptureSession | null = null
 
 function logCapture(message: string, startedAt: number | null = activeCaptureStartedAt): void {
   if (!startedAt) {
@@ -259,18 +260,24 @@ async function hideSettingsWindowForCapture(captureStartedAt: number): Promise<v
   logCapture('after hide settle', captureStartedAt)
 }
 
-async function tryWindowsGraphicsCapture(display: Display, captureStartedAt: number): Promise<boolean> {
+async function tryWindowsGraphicsCapture(
+  display: Display,
+  captureStartedAt: number
+): Promise<boolean> {
   try {
-    const helperPath = resolveWindowsCaptureHelperPath({
-      isPackaged: app.isPackaged,
-      appPath: app.getAppPath(),
-      resourcesPath: process.resourcesPath
-    })
+    if (!wgcSession) {
+      const helperPath = resolveWindowsCaptureHelperPath({
+        isPackaged: app.isPackaged,
+        appPath: app.getAppPath(),
+        resourcesPath: process.resourcesPath
+      })
+      wgcSession = new WindowsCaptureSession(helperPath)
+    }
 
     const rect = screen.dipToScreenRect(null, display.bounds)
     const cursor = screen.dipToScreenPoint(screen.getCursorScreenPoint())
 
-    const frame = await runWindowsCapture(helperPath, { rect, cursor }, (message) => 
+    const frame = await wgcSession.capture({ rect, cursor }, (message) =>
       logCapture(message, captureStartedAt)
     )
 
@@ -283,7 +290,10 @@ async function tryWindowsGraphicsCapture(display: Display, captureStartedAt: num
       height: frame.header.height
     })
     lastScreenshotSize = { width: frame.header.width, height: frame.header.height }
-    logCapture(`after wgc screenshot image=${frame.header.width}x${frame.header.height}`, captureStartedAt)
+    logCapture(
+      `after wgc screenshot image=${frame.header.width}x${frame.header.height}`,
+      captureStartedAt
+    )
 
     return true
   } catch (err) {
@@ -463,4 +473,5 @@ app.on('window-all-closed', () => {
 // Clean the global shortcut when quiting the app
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
+  wgcSession?.dispose()
 })
