@@ -1,32 +1,48 @@
-use windows_capture::graphics_capture_api::GraphicsCaptureApi;
-use windows_capture::monitor::Monitor;
-
 use windows_capture::capture::{Context, GraphicsCaptureApiHandler};
+use windows_capture::d3d11::create_d3d_device;
 use windows_capture::frame::Frame;
-use windows_capture::graphics_capture_api::InternalCaptureControl;
+use windows_capture::graphics_capture_api::{GraphicsCaptureApi, InternalCaptureControl};
+use windows_capture::monitor::Monitor;
 use windows_capture::settings::{
-    ColorFormat, CursorCaptureSettings, DirtyRegionSettings, DrawBorderSettings,
-    MinimumUpdateIntervalSettings, SecondaryWindowSettings, Settings,
+    ColorFormat, CursorCaptureSettings, DirtyRegionSettings, DrawBorderSettings, GraphicsCaptureItemType,
+    MinimumUpdateIntervalSettings, SecondaryWindowSettings,
 };
 
-use std::io:: {self, Write};
+use parking_lot::Mutex;
+use std::io::{self, BufRead, Write};
+use std::mem;
+use std::sync::Arc;
+use std::time::Instant;
 
-use windows::Win32::Foundation::{POINT, RECT};
+use windows::Win32::Foundation::{POINT, RECT, S_FALSE};
+use windows::Win32::Graphics::Direct3D11::{ID3D11Device, ID3D11DeviceContext};
 use windows::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, HMONITOR, MONITOR_DEFAULTTONULL, MONITORINFO, MonitorFromPoint
+    GetMonitorInfoW, HMONITOR, MONITOR_DEFAULTTONULL, MONITORINFO, MonitorFromPoint,
+};
+use windows::Win32::System::Com::{CO_MTA_USAGE_COOKIE, CoDecrementMTAUsage, CoIncrementMTAUsage};
+use windows::Win32::System::Threading::GetCurrentThreadId;
+use windows::Win32::System::WinRT::{
+    CreateDispatcherQueueController, DQTAT_COM_NONE, DQTYPE_THREAD_CURRENT, DispatcherQueueOptions,
+    RO_INIT_MULTITHREADED, RoInitialize, RoUninitialize,
 };
 use windows::Win32::UI::HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext};
+use windows::Win32::UI::WindowsAndMessaging::{DispatchMessageW, GetMessageW, MSG, TranslateMessage};
 
 const MAGIC: &[u8; 4] = b"SNWG";
 const VERSION: u16 = 1;
-const HEADER_LEN: u16 =32;
+const HEADER_LEN: u16 = 32;
 const FORMAT_BGRAB: u32 = 1;
 
 // 包裹标签（header）：写清楚"这张图多宽、多高、什么格式、里面数据有多少字节"
 // 包裹内容（payload）：真正的像素数据
+//
+// 这个进程现在是常驻的：D3D 设备、WinRT 初始化、dispatcher queue 只在 main() 顶部建一次，
+// 之后在一个循环里反复读 stdin 的一行请求、截一帧、写回 stdout，直到 stdin 关闭才退出。
+// 这样每次取色不用重新付一次"建 D3D 设备"的开销（实测在部分机器上这一步单独就要 ~500ms）。
 
 fn main() -> std::process::ExitCode {
-    // 声明这个进程能处理 DPI 缩放，不然 GetMonitorInfoW 这类老 API 会返回缩放后的虚拟坐标，跟真实物理像素对不上
+    let process_started_at = Instant::now();
+
     if let Err(err) = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) } {
         eprintln!("failed to set DPI awareness: {err}");
     }
@@ -43,35 +59,114 @@ fn main() -> std::process::ExitCode {
         }
     }
 
-    // 没传命令行参数就是 None，select_monitor 会走"随便挑一个屏幕"兜底
-    let target = parse_target_rect();
-    let monitor = match select_monitor(target.as_ref()) {
-        Ok(monitor) => monitor,
+    let _winrt = match WinRtGuard::new() {
+        Ok(guard) => guard,
         Err(err) => {
             eprintln!("{err}");
             return std::process::ExitCode::FAILURE;
         }
     };
 
-    eprintln!("selected monitor: {monitor:?}");
+    // dispatcher queue 是 WinRT 事件（比如"这一帧到了"）能被 GetMessageW 消息循环收到的前提条件，
+    // 整个进程只建一次，_controller 要活到 main() 结束（丢弃了它 WinRT 事件可能就收不到了）
+    let dispatcher_options = DispatcherQueueOptions {
+        dwSize: mem::size_of::<DispatcherQueueOptions>() as u32,
+        threadType: DQTYPE_THREAD_CURRENT,
+        apartmentType: DQTAT_COM_NONE,
+    };
+    let _controller = match unsafe { CreateDispatcherQueueController(dispatcher_options) } {
+        Ok(controller) => controller,
+        Err(err) => {
+            eprintln!("failed to create dispatcher queue controller: {err}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
 
-    let settings = Settings::new(
-        monitor,
-        CursorCaptureSettings::Default,
-        DrawBorderSettings::Default,
-        SecondaryWindowSettings::Default,
-        MinimumUpdateIntervalSettings::Default,
-        DirtyRegionSettings::Default,
-        ColorFormat::Bgra8,
-        (),
-    );
+    let thread_id = unsafe { GetCurrentThreadId() };
 
-    if let Err(err) = SingleFrameCapture::start(settings) {
-        eprintln!("capture failed: {err}");
-        return std::process::ExitCode::FAILURE;
+    let (d3d_device, d3d_device_context) = match create_d3d_device() {
+        Ok(pair) => pair,
+        Err(err) => {
+            eprintln!("failed to create D3D device: {err}");
+            return std::process::ExitCode::FAILURE;
+        }
+    };
+
+    eprintln!("[timing] ready for requests, elapsed since process start={:?}", process_started_at.elapsed());
+
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let line = match line {
+            Ok(line) => line,
+            Err(err) => {
+                eprintln!("failed to read stdin: {err}");
+                break;
+            }
+        };
+
+        let target = match parse_target_line(&line) {
+            Ok(target) => target,
+            Err(()) => {
+                eprintln!("ignoring malformed request line: {line:?}");
+                continue;
+            }
+        };
+
+        let request_started_at = Instant::now();
+
+        let monitor = match select_monitor(target.as_ref()) {
+            Ok(monitor) => monitor,
+            Err(err) => {
+                eprintln!("{err}");
+                continue;
+            }
+        };
+
+        eprintln!("selected monitor: {monitor:?}");
+
+        if let Err(err) = capture_one_frame(&d3d_device, &d3d_device_context, monitor, thread_id) {
+            eprintln!("capture failed: {err}");
+            continue;
+        }
+
+        eprintln!("[timing] request handled in {:?}", request_started_at.elapsed());
     }
 
+    eprintln!("[timing] stdin closed after {:?}, exiting", process_started_at.elapsed());
     std::process::ExitCode::SUCCESS
+}
+
+// WinRT 要求先在当前线程"报到"（加入 MTA、调 RoInitialize）才能用，整个进程只做一次。
+// 照抄 windows-capture crate 内部 WinRT 结构体的做法（那个类型是 crate 私有的，用不了，只能自己写一份）。
+struct WinRtGuard {
+    mta_cookie: CO_MTA_USAGE_COOKIE,
+}
+
+impl WinRtGuard {
+    fn new() -> Result<Self, String> {
+        let mta_cookie =
+            unsafe { CoIncrementMTAUsage() }.map_err(|err| format!("failed to join MTA: {err}"))?;
+
+        match unsafe { RoInitialize(RO_INIT_MULTITHREADED) } {
+            Ok(()) => {}
+            Err(err) if err.code() == S_FALSE => {}
+            Err(err) => {
+                unsafe { CoDecrementMTAUsage(mta_cookie).ok() };
+                return Err(format!("failed to initialize WinRT: {err}"));
+            }
+        }
+
+        Ok(Self { mta_cookie })
+    }
+}
+
+impl Drop for WinRtGuard {
+    fn drop(&mut self) {
+        unsafe {
+            RoUninitialize();
+            let _ = CoDecrementMTAUsage(self.mta_cookie);
+        }
+    }
 }
 
 struct SingleFrameCapture;
@@ -103,6 +198,57 @@ impl GraphicsCaptureApiHandler for SingleFrameCapture {
     }
 }
 
+// 用共享的 D3D 设备建一次性的截图会话：建 session -> 开始截图 -> 等第一帧(或者会话被关闭) -> 关 session。
+// 设备本身不在这里建，是外面 main() 传进来复用的。
+fn capture_one_frame(
+    d3d_device: &ID3D11Device,
+    d3d_device_context: &ID3D11DeviceContext,
+    monitor: Monitor,
+    thread_id: u32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let item_with_details: GraphicsCaptureItemType =
+        monitor.try_into().map_err(|err: windows::core::Error| Box::new(err) as Box<dyn std::error::Error>)?;
+
+    let result = Arc::new(Mutex::new(None));
+    let ctx = Context { flags: (), device: d3d_device.clone(), device_context: d3d_device_context.clone() };
+    let callback: Arc<Mutex<SingleFrameCapture>> = Arc::new(Mutex::new(
+        SingleFrameCapture::new(ctx).map_err(|err| -> Box<dyn std::error::Error> { err })?,
+    ));
+
+    let mut capture = GraphicsCaptureApi::new(
+        d3d_device.clone(),
+        d3d_device_context.clone(),
+        item_with_details,
+        callback,
+        CursorCaptureSettings::Default,
+        DrawBorderSettings::Default,
+        SecondaryWindowSettings::Default,
+        MinimumUpdateIntervalSettings::Default,
+        DirtyRegionSettings::Default,
+        ColorFormat::Bgra8,
+        thread_id,
+        result.clone(),
+    )?;
+
+    capture.start_capture()?;
+
+    let mut message = MSG::default();
+    unsafe {
+        while GetMessageW(&mut message, None, 0, 0).as_bool() {
+            let _ = TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+
+    capture.stop_capture();
+
+    if let Some(err) = result.lock().take() {
+        return Err(err);
+    }
+
+    Ok(())
+}
+
 fn write_frame(width: u32, height: u32, stride: u32, payload: &[u8]) -> io::Result<()> {
     // Prepare the output stream = stdout
     let stdout = io::stdout();
@@ -117,7 +263,7 @@ fn write_frame(width: u32, height: u32, stride: u32, payload: &[u8]) -> io::Resu
     out.write_all(&stride.to_le_bytes())?;
     out.write_all(&FORMAT_BGRAB.to_le_bytes())?;
     out.write_all(&(payload.len() as u64).to_le_bytes())?;
-    out.write_all(&payload)?;
+    out.write_all(payload)?;
 
     // Send the output to electron
     out.flush()
@@ -133,21 +279,28 @@ struct TargetRect {
     cursor_y: i32,
 }
 
-// 从命令行参数解析目标 rect，没传够参数就返回 None（手动测试时可以不传）
-fn parse_target_rect() -> Option<TargetRect> {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() < 7 {
-        return None;
+// 解析 stdin 收到的一行请求："x y width height cursorX cursorY"。
+// 空行（trim 后为空）当成"没传目标"，方便手动测试时直接敲回车触发一次截图；
+// 非空但解析不出 6 个整数的行，返回 Err(()) 让调用方跳过这一行、记日志、继续等下一行。
+fn parse_target_line(line: &str) -> Result<Option<TargetRect>, ()> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return Ok(None);
     }
 
-    Some(TargetRect {
-        x: args[1].parse().ok()?,
-        y: args[2].parse().ok()?,
-        width: args[3].parse().ok()?,
-        height: args[4].parse().ok()?,
-        cursor_x: args[5].parse().ok()?,
-        cursor_y: args[6].parse().ok()?,
-    })
+    let mut parts = trimmed.split_whitespace();
+    let target = (|| -> Option<TargetRect> {
+        Some(TargetRect {
+            x: parts.next()?.parse().ok()?,
+            y: parts.next()?.parse().ok()?,
+            width: parts.next()?.parse().ok()?,
+            height: parts.next()?.parse().ok()?,
+            cursor_x: parts.next()?.parse().ok()?,
+            cursor_y: parts.next()?.parse().ok()?,
+        })
+    })();
+
+    target.map(Some).ok_or(())
 }
 
 // 调 Windows 原生 API 拿这个屏幕在桌面上的物理位置和范围
