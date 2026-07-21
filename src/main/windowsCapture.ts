@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { win32 } from 'path'
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process'
 
 const WGC_REQUEST_TIMEOUT_MS = 2000 // 每次取色请求的硬超时（含"进程刚拉起、正在建 D3D 设备"的那次），超时就当这次失败，触发 fallback
@@ -166,9 +166,9 @@ export function resolveWindowsCaptureHelperPath({
   resourcesPath
 }: WindowsCaptureHelperPathOptions): string {
   if (isPackaged) {
-    return join(resourcesPath, 'win', 'snidge-wgc-capture.exe')
+    return win32.join(resourcesPath, 'win', 'snidge-wgc-capture.exe')
   }
-  return join(appPath, 'resources', 'win', 'snidge-wgc-capture.exe')
+  return win32.join(appPath, 'resources', 'win', 'snidge-wgc-capture.exe')
 }
 
 export const WGC_MAGIC = 'SNWG'

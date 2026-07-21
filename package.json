@@ -20,7 +20,7 @@
     "build:mac-sampler": "bash scripts/build-macos-sampler.sh",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win --x64",
+    "build:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows-capture-helper.ps1 && npm run build && electron-builder --win --x64",
     "build:win:arm64": "npm run build && electron-builder --win --arm64",
     "build:mac": "npm run build:mac-sampler && electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
