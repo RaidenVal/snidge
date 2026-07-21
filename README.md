@@ -2,22 +2,26 @@
 
 A cross-platform desktop colour picker for graphic designers.
 
-Press a hotkey to freeze the screen, sample any pixel with a magnifier loupe,
-and get a radial palette of tint/shade variants in HEX / RGB / HSL — then export
-it as a PNG. Built with Electron, React and TypeScript.
+Snidge opens with two tools: **Colour Palette** turns a sampled screen colour
+into a radial set of lighter and darker tones, while **Colour Gradient** blends
+between two colours. Inspect and copy HEX, RGB and CMYK values, then export the
+result as a PNG. Built with Electron, React and TypeScript.
 
 ## How to use
 
-1. Press the shortcut (default `Ctrl+Alt+J`, changeable in Settings) from
-   anywhere on your desktop.
-2. Your screen freezes; click the exact pixel you want to sample.
-3. Choose **Palette** mode to turn that one colour into a radial set of
-   tint/shade variants, or **Gradient** mode to sample a second colour and
-   blend between the two.
-4. Click any swatch to see its HEX, RGB and CMYK values — one click copies
-   any of them to your clipboard.
-5. Not happy with the result? **Repick** samples again; **Cancel** starts
-   over. **Save** exports the whole palette or gradient as a PNG.
+1. Open Snidge and choose **Colour Palette** or **Colour Gradient** from the
+   main interface.
+2. In **Colour Palette**, start colour capture and click any pixel on your
+   screen. Snidge generates 6, 10 or 20 lighter and darker tones.
+3. In **Colour Gradient**, capture Colour A and Colour B, then generate 4, 9
+   or 16 colours between them.
+4. Click any colour to inspect its HEX, RGB and CMYK values and copy the value
+   you need.
+5. Use **Repick** to capture another colour, **Cancel** to reset the current
+   result, or **Save** to export the palette or gradient as a PNG.
+
+The default quick-capture shortcut is `Ctrl+Alt+S` on Windows
+(`Command+Option+S` on macOS) and can be changed in Settings.
 
 ## Privacy
 
@@ -28,7 +32,8 @@ Everything happens locally:
 
 - It briefly captures your screen so you can sample a pixel's colour. That
   screenshot is held in memory only — never saved, never transmitted.
-- It saves a palette PNG only when you choose to, to a location you pick.
+- It saves a palette or gradient PNG only when you choose to, to a location
+  you pick.
 - It stores your chosen keyboard shortcut in a small local settings file.
 
 Snidge collects no personal data. Because nothing leaves your device, there is
