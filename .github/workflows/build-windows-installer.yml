@@ -1,0 +1,62 @@
+name: Build Windows Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/build-v1.2.0-installers
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run checks
+        run: |
+          npm run lint
+          npm run format:check
+          npm run typecheck
+          npm test
+
+      - name: Build native Windows capture helper
+        shell: powershell
+        run: ./scripts/build-windows-capture-helper.ps1
+
+      - name: Build Windows NSIS installer
+        run: |
+          npm run build
+          npx electron-builder --win nsis --x64
+
+      - name: Verify packaged native helper
+        shell: powershell
+        run: |
+          $helper = "dist/win-unpacked/resources/win/snidge-wgc-capture.exe"
+          if (-not (Test-Path $helper)) {
+            throw "Missing packaged Windows capture helper: $helper"
+          }
+          Get-Item $helper | Format-List FullName,Length
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: snidge-1.2.0-windows-x64
+          path: dist/snidge-1.2.0-setup.exe
+          if-no-files-found: error
+          retention-days: 14
